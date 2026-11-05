@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# credenciales: nunca al repositorio
+key.json
+*.key
+*.crt
+*.pem
+.env
+# terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan

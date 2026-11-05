@@ -1,0 +1,30 @@
+{
+  "prefijo": "rampa-local-v1.1",
+  "etiqueta": "kind local, servidor 1.1",
+  "inicio_unix": 1793844371,
+  "fin_unix": 1793844725,
+  "duracion_s": 354,
+  "usuarios_max": 120,
+  "ccu_max_prometheus": 30.0,
+  "rtt": {
+    "50%": 8.0,
+    "95%": 37.0,
+    "99%": 600.0,
+    "Average Response Time": 35.36342013784363
+  },
+  "rtt_peticiones": 3047,
+  "rtt_fallos": 18,
+  "asignacion_peticiones": 35,
+  "asignacion_fallos": 31,
+  "conexion_fallos": 2,
+  "desconexiones": 24,
+  "capacidad_usuarios_p95_sobre_80ms_15s": 35,
+  "servidores_allocated_necesarios": 12,
+  "segundos_hasta_primer_escalado_de_flota": null,
+  "fraccion_del_tiempo_sin_servidores_ready": 0.269,
+  "servidores_vivos_max": 3.0,
+  "ready_max": 3.0,
+  "allocated_max": 3.0,
+  "nodos_max": 1.0,
+  "replicas_hpa_max": 2.0
+}

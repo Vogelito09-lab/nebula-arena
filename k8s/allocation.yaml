@@ -1,0 +1,7 @@
+# Pide un servidor Ready de la flota: pasa a Allocated (práctica 3.3).
+# Uso: kubectl create -f k8s/allocation.yaml
+apiVersion: allocation.agones.dev/v1
+kind: GameServerAllocation
+spec:
+  selectors:
+    - matchLabels: { agones.dev/fleet: nebula-fleet }

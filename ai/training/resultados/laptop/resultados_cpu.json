@@ -1,0 +1,23 @@
+{
+  "fecha_utc": "2026-11-05T01:17:47+00:00",
+  "maquina": {
+    "sistema": "Windows-11-10.0.26200-SP0",
+    "cpu": "AMD64 Family 25 Model 68 Stepping 1, AuthenticAMD",
+    "nucleos_logicos": 12,
+    "gpu": null,
+    "torch": "2.15.0+cpu"
+  },
+  "dispositivo_entrenamiento": "cpu",
+  "timesteps": 100000,
+  "tiempo_entrenamiento_s": 173.45,
+  "recompensa_media": 500.0,
+  "latencia_inferencia_ms": 0.2242,
+  "decisiones_por_s_por_nucleo": 4460,
+  "dimensionamiento": {
+    "bots": 2000,
+    "hz": 10,
+    "inferencias_por_s": 20000,
+    "vcpu_sin_margen": 4.48,
+    "vcpu_con_30_margen": 6
+  }
+}

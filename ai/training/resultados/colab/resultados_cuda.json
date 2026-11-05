@@ -1,0 +1,23 @@
+{
+  "fecha_utc": "2026-11-05T01:43:11+00:00",
+  "maquina": {
+    "sistema": "Linux-6.6.159+-x86_64-with-glibc2.39",
+    "cpu": "x86_64",
+    "nucleos_logicos": 2,
+    "gpu": "Tesla T4",
+    "torch": "2.11.0+cu130"
+  },
+  "dispositivo_entrenamiento": "cuda",
+  "timesteps": 100000,
+  "tiempo_entrenamiento_s": 222.85,
+  "recompensa_media": 500.0,
+  "latencia_inferencia_ms": 0.432,
+  "decisiones_por_s_por_nucleo": 2315,
+  "dimensionamiento": {
+    "bots": 2000,
+    "hz": 10,
+    "inferencias_por_s": 20000,
+    "vcpu_sin_margen": 8.64,
+    "vcpu_con_30_margen": 12
+  }
+}

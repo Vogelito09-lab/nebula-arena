@@ -1,0 +1,26 @@
+# Flota LOCAL (kind): igual que k8s/fleet.yaml pero con la imagen cargada en el nodo.
+apiVersion: agones.dev/v1
+kind: Fleet
+metadata:
+  name: nebula-fleet
+spec:
+  replicas: 3
+  template:
+    spec:
+      ports:
+        - name: game
+          containerPort: 7654
+          protocol: TCP           # WebSocket viaja sobre TCP
+      health: { initialDelaySeconds: 10, periodSeconds: 5 }
+      template:
+        spec:
+          containers:
+            - name: nebula
+              image: nebula-server:1.2
+              imagePullPolicy: IfNotPresent   # imagen cargada con "kind load"
+              ports:
+                - name: metrics   # lo leerá Prometheus en la práctica 3.4
+                  containerPort: 9100
+              resources:
+                requests: { cpu: "50m", memory: "64Mi" }    # local: el nodo de kind solo tiene ~4 GB
+                limits:   { cpu: "500m", memory: "512Mi" }

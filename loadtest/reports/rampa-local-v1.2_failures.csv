@@ -1,0 +1,8 @@
+Method,Name,Error,Occurrences
+WS,desconexion,"BrokenPipeError(32, 'Broken pipe')",18
+HTTP,asignacion,HTTPError('502 Server Error: BAD GATEWAY for url: http://nebula-control-plane:30080/match'),1
+WS,rtt,"ConnectionResetError(104, 'Connection reset by peer')",8
+WS,rtt,JSONDecodeError('Expecting value: line 1 column 1 (char 0)'),6
+WS,desconexion,"ConnectionResetError(104, 'Connection reset by peer')",52
+HTTP,asignacion,HTTPError('503 Server Error: SERVICE UNAVAILABLE for url: http://nebula-control-plane:30080/match'),20
+WS,rtt,WebSocketTimeoutException('Connection timed out'),10

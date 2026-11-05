@@ -1,0 +1,114 @@
+# Práctica 3.2 — Pipeline CI/CD de Nebula Arena.
+#
+# Basado en el workflow del material (pruebas → imagen con el SHA del commit →
+# Artifact Registry → actualizar la flota), adaptado a la carpeta server/.
+#
+# Trabajos:
+#   pruebas  : pytest (unitarias + funcionamiento). Si fallan, no se publica nada.
+#   smoke    : construye la imagen y juega una partida corta de 10 jugadores contra
+#              el contenedor (la "partida simulada corta" del material).
+#   publicar : sube nebula-server:<sha> a Artifact Registry.
+#   desplegar: cambia la imagen de la flota en GKE por la del commit. Agones solo
+#              reemplaza servidores libres; los Allocated terminan su partida
+#              antes de apagarse (drenado).
+#
+# publicar y desplegar solo corren cuando el repositorio tiene configurado:
+#   Variables (Settings → Secrets and variables → Actions → Variables):
+#     GCP_PROJECT   ID del proyecto de Google Cloud
+#   Secretos:
+#     GCP_SA_KEY    contenido de key.json de la cuenta de servicio github-deployer
+# Mientras no existan, el pipeline corre pruebas y smoke test y queda en verde.
+name: nebula-server-ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  REGION: us-central1
+  ZONA: us-central1-a
+  CLUSTER: nebula
+  IMG: us-central1-docker.pkg.dev/${{ vars.GCP_PROJECT }}/nebula/nebula-server
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: server } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Pruebas
+        run: pip install -r requirements-dev.txt && pytest -q
+
+  smoke:
+    needs: pruebas
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Construir imagen
+        run: docker build -t nebula-server:${{ github.sha }} server
+      - name: Partida simulada de 10 jugadores contra el contenedor
+        run: |
+          docker run -d --name nebula -p 7654:7654 -p 9100:9100 nebula-server:${{ github.sha }}
+          pip install -r server/requirements.txt
+          for i in $(seq 1 20); do curl -sf localhost:9100/metrics >/dev/null && break; sleep 1; done
+          python server/cliente_prueba.py --url ws://localhost:7654 --jugadores 10 --segundos 10
+          curl -s localhost:9100/metrics | grep -E "^nebula_(tick_rate|disconnects_total)"
+          # el servidor debe sostener al menos el 95 % de los 20 ticks/s
+          python -c "import urllib.request as u,sys; m=u.urlopen('http://localhost:9100/metrics').read().decode(); r=[float(l.split()[1]) for l in m.splitlines() if l.startswith('nebula_tick_rate ')][0]; print('tick rate', r); sys.exit(0 if r >= 19 else 1)"
+      - name: Logs del servidor
+        if: always()
+        run: docker logs nebula
+
+  publicar:
+    needs: smoke
+    if: github.event_name == 'push' && vars.GCP_PROJECT != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Construir y publicar imagen
+        run: |
+          gcloud auth configure-docker $REGION-docker.pkg.dev --quiet
+          docker build -t $IMG:${{ github.sha }} server
+          docker push $IMG:${{ github.sha }}
+
+  desplegar:
+    needs: publicar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ env.CLUSTER }}
+          location: ${{ env.ZONA }}
+      - name: Actualizar la flota a la imagen del commit
+        run: |
+          sed -i "s|image: .*nebula-server:.*|image: $IMG:${{ github.sha }}|" k8s/fleet.yaml
+          grep "image:" k8s/fleet.yaml
+          kubectl apply -f k8s/fleet.yaml
+      - name: Esperar a que la flota tenga servidores Ready con la versión nueva
+        run: |
+          for i in $(seq 1 30); do
+            listos=$(kubectl get gameservers -l agones.dev/fleet=nebula-fleet \
+              -o jsonpath='{range .items[*]}{.status.state} {.spec.template.spec.containers[0].image}{"\n"}{end}' \
+              | grep -c "^Ready $IMG:${{ github.sha }}$" || true)
+            echo "servidores Ready con la versión nueva: $listos"
+            [ "$listos" -ge 1 ] && exit 0
+            sleep 10
+          done
+          echo "la versión nueva no llegó a Ready: revisa 'kubectl describe gameserver'"; exit 1
+      - name: Estado final
+        if: always()
+        run: kubectl get fleet nebula-fleet && kubectl get gameservers

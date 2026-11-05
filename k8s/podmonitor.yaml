@@ -1,0 +1,26 @@
+# Indica a Prometheus que lea el puerto "metrics" de cada servidor de juego (3.4).
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: nebula-gameservers
+  namespace: default
+spec:
+  selector:
+    matchLabels: { agones.dev/role: gameserver }
+  podMetricsEndpoints:
+    - port: metrics
+      interval: 5s
+---
+# Métricas del matchmaker (peticiones, errores y latencia de asignación).
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: nebula-matchmaker
+  namespace: default
+spec:
+  selector:
+    matchLabels: { app: matchmaker }
+  podMetricsEndpoints:
+    - port: http
+      path: /metrics
+      interval: 5s

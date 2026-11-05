@@ -1,0 +1,15 @@
+# Capa 1 del autoescalado (práctica 3.4): servidores de partida.
+# Mantiene el 20 % de la flota en Ready. Con 430 servidores Allocated,
+# Agones mantiene ceil(430 / 0.8) = 538 en total (108 Ready).
+apiVersion: autoscaling.agones.dev/v1
+kind: FleetAutoscaler
+metadata:
+  name: nebula-autoscaler
+spec:
+  fleetName: nebula-fleet
+  policy:
+    type: Buffer
+    buffer:
+      bufferSize: 20%
+      minReplicas: 3
+      maxReplicas: 200

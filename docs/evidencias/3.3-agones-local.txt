@@ -1,0 +1,162 @@
+### Evidencia práctica 3.3 en clúster local kind (2026-11-05T01:49:33Z)
+
+$ kubectl version
+Client Version: v1.36.1
+Server Version: v1.37.0
+Agones: agones-1.62.0
+
+## 1. Antes de la asignación
+$ kubectl get gameservers
+NAME                       STATE   ADDRESS      PORT   NODE                   AGE
+nebula-fleet-v9js2-4t5ff   Ready   172.18.0.2   7052   nebula-control-plane   33s
+nebula-fleet-v9js2-dcxrp   Ready   172.18.0.2   7724   nebula-control-plane   33s
+nebula-fleet-v9js2-gdgj6   Ready   172.18.0.2   7722   nebula-control-plane   33s
+
+## 2. Asignación
+$ kubectl create -f k8s/allocation.yaml
+gameServerName: nebula-fleet-v9js2-4t5ff
+$ kubectl get gameservers
+NAME                       STATE       ADDRESS      PORT   NODE                   AGE
+nebula-fleet-v9js2-4t5ff   Allocated   172.18.0.2   7052   nebula-control-plane   34s
+nebula-fleet-v9js2-dcxrp   Ready       172.18.0.2   7724   nebula-control-plane   34s
+nebula-fleet-v9js2-gdgj6   Ready       172.18.0.2   7722   nebula-control-plane   34s
+
+## 3. 10 jugadores conectados al servidor asignado (via kubectl port-forward)
+$ python server/cliente_prueba.py --url ws://localhost:17654 --jugadores 10 --segundos 15
+
+Durante la partida:
+$ kubectl get gameservers
+NAME                       STATE       ADDRESS      PORT   NODE                   AGE
+nebula-fleet-v9js2-4t5ff   Allocated   172.18.0.2   7052   nebula-control-plane   47s
+nebula-fleet-v9js2-dcxrp   Ready       172.18.0.2   7724   nebula-control-plane   47s
+nebula-fleet-v9js2-gdgj6   Ready       172.18.0.2   7722   nebula-control-plane   47s
+$ curl localhost:19100/metrics (servidor asignado)
+nebula_players_connected 10.0
+nebula_tick_rate 19.67917148082602
+10 jugadores, 15 s, 140 pings
+RTT p50=9.96 ms  p95=21.75 ms  p99=26.94 ms
+
+## 4. Los jugadores salen: el servidor llama a /shutdown
+$ kubectl get gameservers   (justo al terminar la partida)
+NAME                       STATE      ADDRESS      PORT   NODE                   AGE
+nebula-fleet-v9js2-4t5ff   Shutdown   172.18.0.2   7052   nebula-control-plane   63s
+nebula-fleet-v9js2-cxphd   Ready      172.18.0.2   7007   nebula-control-plane   7s
+nebula-fleet-v9js2-dcxrp   Ready      172.18.0.2   7724   nebula-control-plane   63s
+nebula-fleet-v9js2-gdgj6   Ready      172.18.0.2   7722   nebula-control-plane   63s
+$ kubectl logs nebula-fleet-v9js2-4t5ff -c nebula | tail -3
+2026-11-05 01:49:57,211 INFO websockets.server: connection closed
+2026-11-05 01:49:57,212 INFO websockets.server: connection closed
+2026-11-05 01:49:57,226 INFO nebula: partida terminada: todos los jugadores salieron
+$ kubectl get events --field-selector involvedObject.name=nebula-fleet-v9js2-4t5ff
+58s         Normal   RequestReady     gameserver/nebula-fleet-v9js2-4t5ff   SDK state change
+58s         Normal   Ready            gameserver/nebula-fleet-v9js2-4t5ff   SDK.Ready() complete
+30s         Normal   Allocated        gameserver/nebula-fleet-v9js2-4t5ff   Allocated
+8s          Normal   Shutdown         gameserver/nebula-fleet-v9js2-4t5ff   SDK state change
+8s          Normal   Shutdown         gameserver/nebula-fleet-v9js2-4t5ff   Deletion started
+8s          Normal   Shutdown         gameserver/nebula-fleet-v9js2-4t5ff   Deleting Pod nebula-fleet-v9js2-4t5ff
+8s          Normal   Killing          pod/nebula-fleet-v9js2-4t5ff          Stopping container agones-gameserver-sidecar
+8s          Normal   Killing          pod/nebula-fleet-v9js2-4t5ff          Stopping container nebula
+
+## 5. 15 s después: la flota repuso el servidor
+$ kubectl get gameservers
+NAME                       STATE      ADDRESS      PORT   NODE                   AGE
+nebula-fleet-v9js2-4t5ff   Shutdown   172.18.0.2   7052   nebula-control-plane   79s
+nebula-fleet-v9js2-cxphd   Ready      172.18.0.2   7007   nebula-control-plane   23s
+nebula-fleet-v9js2-dcxrp   Ready      172.18.0.2   7724   nebula-control-plane   79s
+nebula-fleet-v9js2-gdgj6   Ready      172.18.0.2   7722   nebula-control-plane   79s
+$ kubectl get fleet nebula-fleet
+NAME           SCHEDULING   DESIRED   CURRENT   ALLOCATED   READY   AGE
+nebula-fleet   Packed       3         3         0           3       80s
+
+## 6. El servidor en Shutdown terminó de borrarse
+$ kubectl get gameservers
+NAME                       STATE   ADDRESS      PORT   NODE                   AGE
+nebula-fleet-v9js2-cxphd   Ready   172.18.0.2   7007   nebula-control-plane   33s
+nebula-fleet-v9js2-dcxrp   Ready   172.18.0.2   7724   nebula-control-plane   89s
+nebula-fleet-v9js2-gdgj6   Ready   172.18.0.2   7722   nebula-control-plane   89s
+
+## 7. Experimento del entregable: borrar a mano un pod Allocated
+$ kubectl create -f k8s/allocation.yaml  -> nebula-fleet-v9js2-cxphd
+NAME                       STATE       ADDRESS      PORT   NODE                   AGE
+nebula-fleet-v9js2-cxphd   Allocated   172.18.0.2   7007   nebula-control-plane   33s
+nebula-fleet-v9js2-dcxrp   Ready       172.18.0.2   7724   nebula-control-plane   89s
+nebula-fleet-v9js2-gdgj6   Ready       172.18.0.2   7722   nebula-control-plane   89s
+$ kubectl delete pod nebula-fleet-v9js2-cxphd --wait=false
+pod "nebula-fleet-v9js2-cxphd" deleted from default namespace
+$ kubectl get gameservers   (3 s después)
+NAME                       STATE       ADDRESS      PORT   NODE                   AGE
+nebula-fleet-v9js2-cxphd   Allocated   172.18.0.2   7007   nebula-control-plane   37s
+nebula-fleet-v9js2-dcxrp   Ready       172.18.0.2   7724   nebula-control-plane   93s
+nebula-fleet-v9js2-gdgj6   Ready       172.18.0.2   7722   nebula-control-plane   93s
+$ kubectl get events --field-selector involvedObject.name=nebula-fleet-v9js2-cxphd
+34s         Normal   RequestReady     gameserver/nebula-fleet-v9js2-cxphd   SDK state change
+34s         Normal   Ready            gameserver/nebula-fleet-v9js2-cxphd   SDK.Ready() complete
+4s          Normal   Allocated        gameserver/nebula-fleet-v9js2-cxphd   Allocated
+3s          Normal   Killing          pod/nebula-fleet-v9js2-cxphd          Stopping container agones-gameserver-sidecar
+3s          Normal   Killing          pod/nebula-fleet-v9js2-cxphd          Stopping container nebula
+$ kubectl get gameservers   (23 s después)
+NAME                       STATE       ADDRESS      PORT   NODE                   AGE
+nebula-fleet-v9js2-cxphd   Allocated   172.18.0.2   7007   nebula-control-plane   57s
+nebula-fleet-v9js2-dcxrp   Ready       172.18.0.2   7724   nebula-control-plane   113s
+nebula-fleet-v9js2-gdgj6   Ready       172.18.0.2   7722   nebula-control-plane   113s
+$ kubectl get fleet nebula-fleet
+NAME           SCHEDULING   DESIRED   CURRENT   ALLOCATED   READY   AGE
+nebula-fleet   Packed       3         3         1           2       115s
+
+## 8. ~60 s después del borrado (el pod agotó los 30 s de gracia: python como PID 1 ignoraba SIGTERM)
+$ kubectl get gameservers
+NAME                       STATE   ADDRESS      PORT   NODE                   AGE
+nebula-fleet-v9js2-dcxrp   Ready   172.18.0.2   7724   nebula-control-plane   2m31s
+nebula-fleet-v9js2-gdgj6   Ready   172.18.0.2   7722   nebula-control-plane   2m31s
+nebula-fleet-v9js2-tzkfc   Ready   172.18.0.2   7977   nebula-control-plane   30s
+$ kubectl get events --field-selector involvedObject.name=nebula-fleet-v9js2-cxphd
+61s         Normal    Killing          pod/nebula-fleet-v9js2-cxphd          Stopping container nebula
+31s         Warning   Unhealthy        pod/nebula-fleet-v9js2-cxphd          Liveness probe failed: Get "http://10.244.0.17:8080/healthz": dial tcp 10.244.0.17:8080: connect: connection refused
+30s         Warning   Unhealthy        gameserver/nebula-fleet-v9js2-cxphd   Issue with Gameserver pod
+30s         Normal    Shutdown         gameserver/nebula-fleet-v9js2-cxphd   Deletion started
+
+## 9. Versión 1.1 (maneja SIGTERM). Actualización de la flota de 1.0 a 1.1
+$ kubectl apply -f k8s/local/fleet-local.yaml   (image: nebula-server:1.1)
+fleet.agones.dev/nebula-fleet configured
+$ kubectl get gameservers -o custom-columns=NAME,STATE,IMAGE
+NAME                       STATE      IMAGE
+nebula-fleet-gqx7s-5qlrh   Ready      nebula-server:1.1
+nebula-fleet-gqx7s-x62c8   Ready      nebula-server:1.1
+nebula-fleet-v9js2-dcxrp   Shutdown   nebula-server:1.0
+nebula-fleet-v9js2-gdgj6   Ready      nebula-server:1.0
+nebula-fleet-v9js2-tzkfc   Ready      nebula-server:1.0
+
+## 10. Repetir el experimento: borrar un pod Allocated con la versión 1.1
+asignado: nebula-fleet-gqx7s-5qlrh
+$ kubectl delete pod nebula-fleet-gqx7s-5qlrh   (espera a que termine)
+pod "nebula-fleet-gqx7s-5qlrh" deleted from default namespace
+el pod tardó 2 s en terminar (antes: 30 s)
+$ kubectl get gameservers
+NAME                       STATE       ADDRESS      PORT   NODE                   AGE
+nebula-fleet-gqx7s-cxdmn   Ready       172.18.0.2   7145   nebula-control-plane   5s
+nebula-fleet-gqx7s-dllsx   Scheduled   172.18.0.2   7724   nebula-control-plane   0s
+nebula-fleet-gqx7s-x62c8   Ready       172.18.0.2   7016   nebula-control-plane   32s
+nebula-fleet-v9js2-gdgj6   Shutdown    172.18.0.2   7722   nebula-control-plane   3m34s
+nebula-fleet-v9js2-tzkfc   Ready       172.18.0.2   7977   nebula-control-plane   93s
+
+## 11. Actualización en curso (~20 s después del paso 10)
+$ kubectl get gameservers -o custom-columns=NAME,STATE,IMAGE
+NAME                       STATE      IMAGE
+nebula-fleet-gqx7s-cxdmn   Ready      nebula-server:1.1
+nebula-fleet-gqx7s-dllsx   Ready      nebula-server:1.1
+nebula-fleet-gqx7s-x62c8   Ready      nebula-server:1.1
+nebula-fleet-v9js2-gdgj6   Shutdown   nebula-server:1.0
+nebula-fleet-v9js2-tzkfc   Ready      nebula-server:1.0
+$ kubectl get fleet nebula-fleet
+NAME           SCHEDULING   DESIRED   CURRENT   ALLOCATED   READY   AGE
+nebula-fleet   Packed       3         4         0           4       4m3s
+
+## 12. ~50 s después: flota completa en 1.1
+$ kubectl get gameservers -o custom-columns=NAME,STATE,IMAGE
+NAME                       STATE   IMAGE
+nebula-fleet-gqx7s-cxdmn   Ready   nebula-server:1.1
+nebula-fleet-gqx7s-dllsx   Ready   nebula-server:1.1
+nebula-fleet-gqx7s-x62c8   Ready   nebula-server:1.1
+$ kubectl get fleet nebula-fleet
+NAME           SCHEDULING   DESIRED   CURRENT   ALLOCATED   READY   AGE
+nebula-fleet   Packed       3         3         0           3       4m43s

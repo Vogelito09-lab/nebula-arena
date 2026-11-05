@@ -1,0 +1,27 @@
+# Flota de servidores de partida de Nebula Arena (práctica 3.3).
+# Sustituye <PROYECTO> por tu proyecto de Google Cloud. El pipeline de 3.2
+# cambia la etiqueta 1.2 por el SHA del commit.
+apiVersion: agones.dev/v1
+kind: Fleet
+metadata:
+  name: nebula-fleet
+spec:
+  replicas: 3
+  template:
+    spec:
+      ports:
+        - name: game
+          containerPort: 7654
+          protocol: TCP           # WebSocket viaja sobre TCP
+      health: { initialDelaySeconds: 10, periodSeconds: 5 }
+      template:
+        spec:
+          containers:
+            - name: nebula
+              image: us-central1-docker.pkg.dev/<PROYECTO>/nebula/nebula-server:1.2
+              ports:
+                - name: metrics   # lo leerá Prometheus en la práctica 3.4
+                  containerPort: 9100
+              resources:
+                requests: { cpu: "250m", memory: "256Mi" }
+                limits:   { cpu: "500m", memory: "512Mi" }
