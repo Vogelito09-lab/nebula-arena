@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nebula Arena</title>
+  <link rel="stylesheet" href="/src/estilos.css" />
+</head>
+<body>
+  <canvas id="lienzo"></canvas>
+
+  <!-- Pantalla de inicio -->
+  <section id="inicio" class="pantalla visible">
+    <div class="marca">
+      <div class="logo">NEBULA<span>ARENA</span></div>
+      <p class="lema">Combate de arena 5 vs 5 · servidor autoritativo · bots de IA</p>
+    </div>
+    <form id="form-inicio" class="panel" autocomplete="off">
+      <label>Nombre de piloto
+        <input id="nombre" maxlength="16" required placeholder="Tu nombre" />
+      </label>
+      <label>Servidor de partida
+        <input id="servidor" placeholder="ws://localhost:7654" />
+      </label>
+      <div class="botones">
+        <button type="submit" class="primario" id="btn-jugar">Jugar</button>
+        <button type="button" id="btn-espectar">Modo espectador</button>
+        <button type="button" id="btn-clasificacion" hidden>Clasificación</button>
+      </div>
+      <p id="estado-conexion" class="aviso"></p>
+    </form>
+    <div class="controles">
+      <span><b>WASD</b> moverse</span><span><b>Mouse</b> apuntar</span>
+      <span><b>Clic</b> disparar</span><span><b>Tab</b> marcador</span><span><b>Esc</b> salir</span>
+    </div>
+  </section>
+
+  <!-- Clasificación (solo si hay tabla de líderes configurada, práctica 3.5) -->
+  <section id="clasificacion" class="pantalla">
+    <div class="panel ancho">
+      <h2>Clasificación global</h2>
+      <table><thead><tr><th>#</th><th>Piloto</th><th>Puntos</th><th>Partidas</th><th>Victorias</th><th>Derrotas</th></tr></thead>
+        <tbody id="tabla-clasificacion"></tbody></table>
+      <button id="btn-cerrar-clasificacion">Volver</button>
+    </div>
+  </section>
+
+  <!-- HUD de combate -->
+  <section id="hud" class="oculto">
+    <div id="marcador-superior">
+      <div class="equipo azul"><span id="pts-azul">0</span></div>
+      <div id="reloj">5:00</div>
+      <div class="equipo rojo"><span id="pts-rojo">0</span></div>
+      <div id="meta"></div>
+    </div>
+    <div id="feed"></div>
+    <div id="vida-caja"><div class="etiqueta">BLINDAJE</div><div id="vida-barra"><div id="vida-relleno"></div></div><span id="vida-num">100</span></div>
+    <div id="info-red"><span id="ping">— ms</span> · <span id="modo"></span></div>
+    <div id="muerto" class="oculto"><div>DERRIBADO</div><small id="muerto-por"></small><small id="respawn"></small></div>
+    <div id="mira"></div>
+    <div id="tabla-marcador" class="oculto panel ancho">
+      <h2>Marcador</h2>
+      <div class="columnas"><table id="tm-azul"></table><table id="tm-rojo"></table></div>
+    </div>
+  </section>
+
+  <!-- Resultados -->
+  <section id="resultados" class="pantalla">
+    <div class="panel ancho">
+      <h2 id="res-titulo">Victoria</h2>
+      <p id="res-marcador" class="grande"></p>
+      <table><thead><tr><th>Piloto</th><th>Equipo</th><th>Bajas</th><th>Muertes</th></tr></thead>
+        <tbody id="res-tabla"></tbody></table>
+      <p class="aviso">La siguiente partida empieza en unos segundos…</p>
+      <button id="btn-salir-res">Salir al menú</button>
+    </div>
+  </section>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

@@ -9,7 +9,7 @@ Archivo: [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml).
 |---|---|
 | Código y Dockerfile de la 3.3 | Hecho |
 | Workflow escrito | Hecho. YAML validado; el trabajo `smoke` se ensayó en local con éxito (10 jugadores, tick rate 19.71, salida 0) |
-| Repositorio en GitHub y pipeline en verde | **Pendiente:** subir el repositorio |
+| Repositorio en GitHub y pipeline en verde | Hecho: github.com/Vogelito09-lab/nebula-arena, primera corrida (2026-11-05) con `pruebas` y `smoke` en verde, `publicar` y `desplegar` omitidos (sin `GCP_PROJECT`) |
 | Publicar en Artifact Registry y actualizar la flota | **Pendiente:** necesita la parte de nube de la 3.3 |
 
 ## Etapas

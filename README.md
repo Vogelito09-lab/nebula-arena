@@ -9,12 +9,12 @@ sigue las prácticas del material en el orden recomendado: 3.1 → 3.3 → 3.2 �
 | Práctica | Hecho y probado | Falta | Documento |
 |---|---|---|---|
 | 3.1 Entrenar y servir un bot | CPU vs GPU T4 medidos en Colab; dimensionamiento de 2,000 bots | Costo por hora (calculadora) | [practica-3.1](docs/practica-3.1.md) |
-| 3.3 Contenedores y orquestación | Servidor 1.2, imagen, 14 pruebas; flota de Agones en kind (Ready → Allocated → Shutdown) | **Primero al tener Google Cloud:** Artifact Registry, GKE y capturas de `kubectl get gameservers` | [practica-3.3](docs/practica-3.3.md) |
-| 3.2 Pipeline CI/CD | Workflow escrito; el smoke test se ensayó en local | Subir a GitHub (pipeline en verde); publicar y actualizar la flota en GKE | [practica-3.2](docs/practica-3.2.md) |
+| 3.3 Contenedores y orquestación | Servidor 1.2 con reglas de juego y bots, imagen, 29 pruebas; flota de Agones en kind (Ready → Allocated → Shutdown) | **Primero al tener Google Cloud:** Artifact Registry, GKE y capturas de `kubectl get gameservers` | [practica-3.3](docs/practica-3.3.md) |
+| 3.2 Pipeline CI/CD | Workflow en GitHub con pruebas y smoke test en verde | Publicar y actualizar la flota en GKE | [practica-3.2](docs/practica-3.2.md) |
 | 3.4 Autoescalado y carga | Autoscaler, matchmaker + HPA, Prometheus, Grafana y Locust en kind; 2 rampas locales con gráficas | Rampa y pico de 1,000, 500 espectadores y nodos escalando, en GKE | [practica-3.4](docs/practica-3.4.md) |
 | 3.5 Tabla de líderes | API (`POST /score`, `GET /top`), 16 pruebas, imagen | Desplegar en Cloud Run, carga 80/20 de 500 usuarios, costo | [practica-3.5](docs/practica-3.5.md) |
 | 3.6 Terraform | Módulos, entornos dev/staging/prod; `fmt` y `validate` pasan | `plan`, `apply` y `destroy` en el proyecto | [infra/README](infra/README.md) |
-| Cliente 3D | — | Todo (no lo califica la rúbrica) | |
+| Cliente 3D | Three.js: arena, predicción, interpolación, HUD, marcador, resultados, modo espectador; probado contra el servidor local | Apuntar a un servidor en GKE (no lo califica la rúbrica) | [Jugar](#jugar-en-local) |
 
 Todo lo que dice "falta" no está hecho ni medido. Las cifras de los documentos
 son mediciones reales, con su fecha y la máquina donde se tomaron. Lo hecho en
@@ -45,7 +45,7 @@ loadtest/           3.4/3.5: Locust, análisis y reportes
 monitoring/grafana/ dashboard
 .github/workflows/  3.2: pipeline CI/CD
 docs/               una guía por práctica + evidencias
-client/             cliente 3D (pendiente)
+client/             cliente 3D (Vite + Three.js)
 ```
 
 ## Inicio rápido (local)
@@ -56,7 +56,7 @@ Requisitos: Python 3.11 o 3.12 y Docker Desktop.
 python -m venv .venv
 .venv/Scripts/python -m pip install -r server/requirements-dev.txt -r matchmaking/requirements-dev.txt -r serverless/requirements-dev.txt
 
-# pruebas (14 + 5 + 16)
+# pruebas (29 + 5 + 16)
 cd server && ../.venv/Scripts/python -m pytest -q && cd ..
 cd matchmaking && ../.venv/Scripts/python -m pytest -q && cd ..
 cd serverless && ../.venv/Scripts/python -m pytest -q && cd ..
@@ -68,6 +68,38 @@ docker run -d --name nebula -p 7654:7654 -p 9100:9100 nebula-server:1.2
 curl localhost:9100/metrics | grep nebula
 docker rm -f nebula
 ```
+
+## Jugar en local
+
+Requiere Node 20+. En una terminal el servidor y en otra el cliente:
+
+```bash
+.venv/Scripts/python -u server/server.py
+```
+
+```bash
+cd client && npm install && npm run dev
+```
+
+Abre http://localhost:5173, escribe tu nombre y pulsa **Jugar**. Controles: WASD para
+moverse, mouse para apuntar, clic para disparar, Tab para el marcador y Esc para salir.
+Si faltan humanos, el servidor completa cada equipo hasta 5 con bots. La partida
+termina a las 25 bajas o a los 5 minutos. El modo espectador se conecta a
+`ws://<servidor>:7654/espectador` y no ocupa lugar de jugador. Para usar otro
+servidor: `?servidor=ws://IP:PUERTO`; para mostrar la clasificación de la 3.5:
+`?leaderboard=https://URL-de-cloud-run`.
+
+Cómo funciona: el servidor es autoritativo. Valida cada movimiento (velocidad y
+paredes) y responde con una corrección si no es válido. También calcula los
+disparos (hitscan, cadencia de 0.25 s, sin fuego amigo), el daño, las bajas y el
+marcador. El cliente predice solo su propio movimiento y dibuja a los demás
+interpolados 100 ms atrás. **Los bots son de reglas** (máquina de estados: patrullar,
+perseguir, disparar con error de puntería, retirarse con poca vida). No usan el
+modelo PPO de la práctica 3.1; ese modelo se usó para medir costo de inferencia en
+CPU y GPU.
+
+La imagen `nebula-server:1.2` construida antes de este cambio no incluye
+`juego.py`: hay que reconstruirla (`docker build -t nebula-server:1.2 server`).
 
 Clúster local con Agones, monitoreo y carga: ver [practica-3.3](docs/practica-3.3.md)
 y [practica-3.4](docs/practica-3.4.md). Para apagarlo: `kind delete cluster --name nebula`.

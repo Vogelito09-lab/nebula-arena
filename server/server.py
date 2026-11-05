@@ -24,6 +24,8 @@ import urllib.request
 import websockets
 from prometheus_client import Counter, Gauge, Histogram, start_http_server
 
+import juego
+
 MAX_JUGADORES = 10                      # partida 5 vs 5
 TICK_S = 0.05                           # 20 ticks por segundo
 PUERTO_JUEGO = int(os.getenv("GAME_PORT", "7654"))
@@ -39,10 +41,15 @@ DESCONEXIONES = Counter("nebula_disconnects_total",
                         "Conexiones cerradas", ["motivo"])
 MENSAJES_INVALIDOS = Counter("nebula_invalid_messages_total",
                              "Mensajes descartados por la validación")
+CORRECCIONES = Counter("nebula_position_corrections_total",
+                       "Movimientos rechazados por el servidor (velocidad o paredes)")
+ESPECTADORES = Gauge("nebula_spectators_connected", "Espectadores conectados al servidor")
+LEADERBOARD_URL = os.getenv("LEADERBOARD_URL", "").rstrip("/")   # 3.5 (opcional)
 
 log = logging.getLogger("nebula")
-estado, conexiones = {}, set()
+estado, conexiones, espectadores = {}, set(), set()
 partida = {"iniciada": False}
+motor = juego.Partida(estado)           # reglas del juego: comparten el dict estado
 
 SDK = f"http://localhost:{os.getenv('AGONES_SDK_HTTP_PORT', '9358')}"
 
@@ -58,8 +65,14 @@ def agones(ruta):
         return False
 
 
-def snapshot():
-    return json.dumps({"t": time.time(), "e": estado})
+def snapshot(eventos=None, ahora=None):
+    """Estado que se envía a todos en cada tick. "t" y "e" son los del material;
+    el resto (marcador, tiempo restante, eventos y fin) lo usa el cliente 3D."""
+    ahora = time.monotonic() if ahora is None else ahora
+    fin = motor.fin and {k: v for k, v in motor.fin.items() if k != "t"}
+    return json.dumps({"t": time.time(), "e": estado, "m": motor.marcador,
+                       "r": round(motor.tiempo_restante(ahora), 1),
+                       "ev": eventos or [], "fin": fin})
 
 
 def _numero(v):
@@ -83,11 +96,36 @@ def validar(d, mi_id):
         return None
     if not (0 <= x <= ARENA and 0 <= y <= ARENA):
         return None
-    return {"id": jid, "x": float(x), "y": float(y),
-            "dispara": d.get("dispara") is True}
+    limpio = {"id": jid, "x": float(x), "y": float(y),
+              "dispara": d.get("dispara") is True}
+    if "dir" in d:                               # ángulo de apuntado (radianes)
+        if not _numero(d["dir"]):
+            return None
+        limpio["dir"] = math.remainder(float(d["dir"]), math.tau)
+    nombre = d.get("nombre")
+    if isinstance(nombre, str) and nombre.strip():
+        limpio["nombre"] = "".join(c for c in nombre.strip() if c.isprintable())[:16]
+    return limpio
+
+
+def _ruta(ws):
+    req = getattr(ws, "request", None)              # websockets >= 13
+    return getattr(req, "path", None) or getattr(ws, "path", "/") or "/"
 
 
 async def jugador(ws):
+    # Modo espectador (ws://.../espectador): recibe los snapshots sin ocupar lugar.
+    if _ruta(ws).rstrip("/").endswith("/espectador"):
+        espectadores.add(ws)
+        ESPECTADORES.set(len(espectadores))
+        try:
+            await ws.send(json.dumps({"bienvenida": {"espectador": True, "mapa": juego.mapa()}}))
+            await ws.wait_closed()
+        finally:
+            espectadores.discard(ws)
+            ESPECTADORES.set(len(espectadores))
+        return
+
     if len(conexiones) >= MAX_JUGADORES:
         await ws.close(code=4000, reason="partida llena")
         DESCONEXIONES.labels("partida_llena").inc()
@@ -97,42 +135,95 @@ async def jugador(ws):
     partida["iniciada"] = True
     mi_id = None
     motivo = "normal"
+
+    async def procesar(msg):
+        nonlocal mi_id
+        try:
+            d = json.loads(msg)
+        except (ValueError, TypeError):
+            MENSAJES_INVALIDOS.inc()
+            return
+        if isinstance(d, dict) and "ping" in d:       # latencia: responde al instante
+            if _numero(d["ping"]):
+                await ws.send(json.dumps({"pong": d["ping"]}))
+            else:
+                MENSAJES_INVALIDOS.inc()
+            return
+        limpio = validar(d, mi_id)
+        if limpio is None:
+            MENSAJES_INVALIDOS.inc()
+            return
+        ahora = time.monotonic()
+        if mi_id is None:
+            if limpio["id"] in estado:               # id ocupado por otra conexión
+                MENSAJES_INVALIDOS.inc()
+                return
+            mi_id = limpio["id"]
+            yo = motor.unir(mi_id, limpio["x"], limpio["y"], limpio.get("nombre"), ahora)
+            await ws.send(json.dumps({"bienvenida": {
+                "id": mi_id, "equipo": yo["equipo"], "x": yo["x"], "y": yo["y"],
+                "mapa": juego.mapa()}}))
+            return
+        correccion = motor.mover(mi_id, limpio["x"], limpio["y"], limpio.get("dir"), ahora)
+        if correccion:
+            CORRECCIONES.inc()
+            await ws.send(json.dumps({"correccion": correccion}))
+        if limpio["dispara"]:
+            motor.disparar(mi_id, ahora)
+
     try:
         async for msg in ws:
-            try:
-                d = json.loads(msg)
-            except (ValueError, TypeError):
-                MENSAJES_INVALIDOS.inc()
-                continue
-            if isinstance(d, dict) and "ping" in d:   # latencia: responde al instante
-                if _numero(d["ping"]):
-                    await ws.send(json.dumps({"pong": d["ping"]}))
-                else:
-                    MENSAJES_INVALIDOS.inc()
-                continue
-            limpio = validar(d, mi_id)
-            if limpio is None:
-                MENSAJES_INVALIDOS.inc()
-                continue
-            if mi_id is None:
-                if limpio["id"] in estado:           # id ocupado por otra conexión
-                    MENSAJES_INVALIDOS.inc()
-                    continue
-                mi_id = limpio["id"]
-            estado[mi_id] = limpio
+            await procesar(msg)
     except websockets.ConnectionClosedError:
         motivo = "error"
     finally:
         conexiones.discard(ws)
         JUGADORES.set(len(conexiones))
         if mi_id is not None:
-            estado.pop(mi_id, None)                  # el jugador sale del estado
+            motor.salir(mi_id)                       # el jugador sale del estado
         DESCONEXIONES.labels(motivo).inc()
+
+
+def publicar_resultados(fin):
+    """Registra los puntos de los humanos en la tabla de líderes (práctica 3.5).
+    Solo si existe LEADERBOARD_URL; la llave viene de SCORE_API_KEY."""
+    if not LEADERBOARD_URL:
+        return
+    for j in fin["jugadores"]:
+        if j["bot"]:
+            continue
+        resultado = ("victoria" if j["equipo"] == fin["ganador"]
+                     else "derrota" if fin["ganador"] != "empate" else None)
+        nombre = "".join(c for c in j["nombre"] if c.isalnum() or c in "_-")[:32] or "anon"
+        cuerpo = {"jugador": nombre, "puntos": j["bajas"] * 100}
+        if resultado:
+            cuerpo["resultado"] = resultado
+        try:
+            req = urllib.request.Request(
+                f"{LEADERBOARD_URL}/score", data=json.dumps(cuerpo).encode(), method="POST",
+                headers={"Content-Type": "application/json",
+                         "X-Api-Key": os.getenv("SCORE_API_KEY", "")})
+            urllib.request.urlopen(req, timeout=5)
+        except Exception as e:
+            log.warning("no se pudo registrar el puntaje de %s: %s", nombre, e)
+
+
+_sdk_pendientes = set()
+
+
+def _sdk_en_segundo_plano(ruta):
+    """Llama al SDK sin frenar el tick. Fuera de Agones (p. ej. en Windows) un
+    intento fallido tarda ~2 s; si se esperara aquí, el juego se congelaría."""
+    if any(not t.done() for t in _sdk_pendientes):
+        return                                   # el anterior sigue en curso
+    _sdk_pendientes.clear()
+    _sdk_pendientes.add(asyncio.ensure_future(asyncio.to_thread(agones, ruta)))
 
 
 async def bucle():
     n = 0
     ventana_t, ventana_n = time.perf_counter(), 0
+    limite = time.perf_counter()
     while True:
         t = time.perf_counter()
         # tick rate efectivo: ticks iniciados en la ventana / duración de la ventana
@@ -140,18 +231,28 @@ async def bucle():
             TICK_RATE.set(ventana_n / (t - ventana_t))
             ventana_t, ventana_n = t, 0
         ventana_n += 1
-        if conexiones:
-            websockets.broadcast(conexiones, snapshot())
+        ahora = time.monotonic()
+        if estado:
+            eventos = motor.paso(ahora, TICK_S)
+            if any(ev["tipo"] == "fin" for ev in eventos):
+                log.info("fin de partida: %s", motor.fin["marcador"])
+                asyncio.get_running_loop().run_in_executor(None, publicar_resultados, motor.fin)
+        else:
+            eventos = []
+        if conexiones or espectadores:
+            websockets.broadcast(conexiones | espectadores, snapshot(eventos, ahora))
         TICK.observe(time.perf_counter() - t)
         n += 1
         if n % 40 == 0:                              # latido a Agones cada 2 s
-            await asyncio.to_thread(agones, "/health")
+            _sdk_en_segundo_plano("/health")
         if partida["iniciada"] and not conexiones:
             log.info("partida terminada: todos los jugadores salieron")
-            await asyncio.to_thread(agones, "/shutdown")   # fin de partida
+            asyncio.ensure_future(asyncio.to_thread(agones, "/shutdown"))   # fin de partida
             partida["iniciada"] = False
-        # descuenta lo que tardó el tick para mantener 20 Hz reales
-        await asyncio.sleep(max(0.0, TICK_S - (time.perf_counter() - t)))
+        # agenda contra un reloj absoluto: si una espera se alarga (Windows redondea
+        # a ~15 ms), la siguiente se acorta y el promedio se queda en 20 Hz
+        limite = max(limite + TICK_S, time.perf_counter() - TICK_S)
+        await asyncio.sleep(max(0.0, limite - time.perf_counter()))
 
 
 async def anunciar_ready(intervalo=1.0):
