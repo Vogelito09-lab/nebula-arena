@@ -3,6 +3,26 @@
 **Objetivo:** construir la imagen de un servidor de partida en WebSocket y
 desplegarlo como flota de Agones.
 
+## Entregado en AWS (EKS, 2026-11-09)
+
+| Pieza | Cómo quedó |
+|---|---|
+| Registro | ECR `nebula-server` y `matchmaker` (`infra-aws/registro.tf`) |
+| Red | VPC con 2 subredes **públicas** y sin NAT Gateway (ahorro de ~USD 33 al mes). Puertos 7000–8000 TCP/UDP abiertos para las partidas (`infra-aws/red.tf`) |
+| Clúster | EKS **1.36** (soporte estándar, compatible con Agones 1.62). Nodos `m7i-flex.large` (2 vCPU, 8 GB, permitidos por el plan gratuito), mínimo 2 y máximo 6 (`infra-aws/cluster.tf`) |
+| Agones | 1.62.0 con Helm desde Terraform, sin balanceadores innecesarios (`infra-aws/complementos.tf`) |
+| Flota | `k8s/aws/fleet.yaml`: 3 réplicas; cada partida manda su resultado a la tabla de líderes (3.5) con la llave en un Secret |
+
+**Resultados:**
+- La flota pasó a **3 servidores `Ready` en 8 s** después de `kubectl apply`.
+- **Partida real por internet:** `POST /match` al matchmaker → servidor `nebula-fleet-…-2nt49` en `ec2-3-139-56-74…:7981`. Jugaron **10 jugadores durante 15 s** desde la PC: 130 pings, **RTT p50 = 106 ms**, p95 = 133 ms, p99 = 147 ms. Es la distancia de Colima a Ohio, la única región que permite la cuenta.
+- **Ciclo completo de Agones:** el servidor terminó su partida → `Shutdown` → la flota creó uno nuevo para mantener 3 `Ready`.
+- **Evidencia:** `entrega/evidencias/3.3-cluster-agones/`.
+
+Todo se crea con `terraform apply` y se borra con `terraform destroy` (ver `infra-aws/README.md`).
+
+## Versión original para Google Cloud y ensayo local
+
 | Paso | Estado |
 |---|---|
 | 1. Servidor (`server/server.py`) | Hecho y probado |

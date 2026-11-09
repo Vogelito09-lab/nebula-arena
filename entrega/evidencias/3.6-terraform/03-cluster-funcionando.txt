@@ -1,0 +1,35 @@
+﻿== Clúster creado por Terraform funcionando (2026-11-09 14:54) ==
+nebula	1.36	ACTIVE	eks.17
+
+# Nodos
+NAME                                        STATUS   ROLES    AGE   VERSION               INSTANCE-TYPE
+ip-10-0-12-209.us-east-2.compute.internal   Ready    <none>   11m   v1.36.5-eks-6e7947a   m7i-flex.large
+ip-10-0-13-66.us-east-2.compute.internal    Ready    <none>   32m   v1.36.5-eks-6e7947a   m7i-flex.large
+ip-10-0-2-183.us-east-2.compute.internal    Ready    <none>   36m   v1.36.5-eks-6e7947a   m7i-flex.large
+ip-10-0-20-73.us-east-2.compute.internal    Ready    <none>   36m   v1.36.5-eks-6e7947a   m7i-flex.large
+ip-10-0-31-58.us-east-2.compute.internal    Ready    <none>   32m   v1.36.5-eks-6e7947a   m7i-flex.large
+
+# Releases de Helm instalados por Terraform
+NAME                READY   UP-TO-DATE   AVAILABLE   AGE
+agones-allocator    3/3     3            3           33m
+agones-controller   2/2     2            2           33m
+agones-extensions   2/2     2            2           33m
+NAME                                        READY   UP-TO-DATE   AVAILABLE   AGE
+cluster-autoscaler-aws-cluster-autoscaler   1/1     1            1           34m
+metrics-server                              2/2     2            2           11m
+NAME                                 READY   UP-TO-DATE   AVAILABLE   AGE
+monitoreo-grafana                    1/1     1            1           34m
+monitoreo-kube-prometheus-operator   1/1     1            1           34m
+monitoreo-kube-state-metrics         1/1     1            1           34m
+
+# Juego
+NAME                            SCHEDULING   DESIRED   CURRENT   ALLOCATED   READY   AGE
+fleet.agones.dev/nebula-fleet   Packed       3         3         0           3       31m
+
+NAME                                                       AGE
+fleetautoscaler.autoscaling.agones.dev/nebula-autoscaler   31m
+
+NAME                                                 REFERENCE               TARGETS       MINPODS   MAXPODS   REPLICAS   AGE
+horizontalpodautoscaler.autoscaling/matchmaker-hpa   Deployment/matchmaker   cpu: 1%/60%   2         30        2          31m
+NAME         TYPE           CLUSTER-IP      EXTERNAL-IP                                                               PORT(S)        AGE
+matchmaker   LoadBalancer   172.20.222.11   a6cd6956a66f14954a5b0517b09e7786-2138136351.us-east-2.elb.amazonaws.com   80:30080/TCP   31m

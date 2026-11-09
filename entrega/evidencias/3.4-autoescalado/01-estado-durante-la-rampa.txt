@@ -1,0 +1,41 @@
+﻿== 2026-11-09 14:44:12 (durante la rampa de 300 jugadores) ==
+
+# Nodos (capa 3: Cluster Autoscaler, min 2 / max 6)
+NAME                                        STATUS   ROLES    AGE    VERSION               INSTANCE-TYPE
+ip-10-0-12-209.us-east-2.compute.internal   Ready    <none>   111s   v1.36.5-eks-6e7947a   m7i-flex.large
+ip-10-0-13-66.us-east-2.compute.internal    Ready    <none>   22m    v1.36.5-eks-6e7947a   m7i-flex.large
+ip-10-0-18-253.us-east-2.compute.internal   Ready    <none>   46s    v1.36.5-eks-6e7947a   m7i-flex.large
+ip-10-0-2-183.us-east-2.compute.internal    Ready    <none>   26m    v1.36.5-eks-6e7947a   m7i-flex.large
+ip-10-0-20-73.us-east-2.compute.internal    Ready    <none>   26m    v1.36.5-eks-6e7947a   m7i-flex.large
+ip-10-0-31-58.us-east-2.compute.internal    Ready    <none>   22m    v1.36.5-eks-6e7947a   m7i-flex.large
+
+# Flota (capa 1: FleetAutoscaler de Agones)
+NAME           SCHEDULING   DESIRED   CURRENT   ALLOCATED   READY   AGE
+nebula-fleet   Packed       37        37        34          0       21m
+{"ableToScale":true,"currentReplicas":37,"desiredReplicas":43,"lastAppliedPolicy":"Buffer","lastScaleTime":"2026-11-09T20:44:22Z","scalingLimited":false}
+
+
+# HPA del matchmaker (capa 2)
+NAME             REFERENCE               TARGETS       MINPODS   MAXPODS   REPLICAS   AGE
+matchmaker-hpa   Deployment/matchmaker   cpu: 2%/60%   2         30        2          21m
+
+# Pods pendientes
+default   nebula-fleet-h9d2j-7j8jb   0/2   Pending   0     13s
+default   nebula-fleet-h9d2j-bwcqc   0/2   Pending   0     13s
+default   nebula-fleet-h9d2j-d9j98   0/2   Pending   0     13s
+default   nebula-fleet-h9d2j-k9kf4   0/2   Pending   0     73s
+default   nebula-fleet-h9d2j-kmhzn   0/2   Pending   0     13s
+default   nebula-fleet-h9d2j-nx6gn   0/2   Pending   0     13s
+default   nebula-fleet-h9d2j-pn47v   0/2   Pending   0     43s
+default   nebula-fleet-h9d2j-szv67   0/2   Pending   0     43s
+default   nebula-fleet-h9d2j-wg77n   0/2   Pending   0     13s
+
+# Eventos del Cluster Autoscaler
+2026-11-09T20:21:19Z   pod triggered scale-up: [{eks-game-pool-9cd0e0fa-6bd6-8f78-e0d3-a83825d994e0 2->4 (max: 6)}]
+2026-11-09T20:43:03Z   pod triggered scale-up: [{eks-game-pool-9cd0e0fa-6bd6-8f78-e0d3-a83825d994e0 5->6 (max: 6)}]
+2026-11-09T20:42:03Z   pod triggered scale-up: [{eks-game-pool-9cd0e0fa-6bd6-8f78-e0d3-a83825d994e0 4->5 (max: 6)}]
+2026-11-09T20:43:03Z   pod triggered scale-up: [{eks-game-pool-9cd0e0fa-6bd6-8f78-e0d3-a83825d994e0 5->6 (max: 6)}]
+2026-11-09T20:43:03Z   pod triggered scale-up: [{eks-game-pool-9cd0e0fa-6bd6-8f78-e0d3-a83825d994e0 5->6 (max: 6)}]
+2026-11-09T20:43:03Z   pod triggered scale-up: [{eks-game-pool-9cd0e0fa-6bd6-8f78-e0d3-a83825d994e0 5->6 (max: 6)}]
+2026-11-09T20:43:03Z   pod triggered scale-up: [{eks-game-pool-9cd0e0fa-6bd6-8f78-e0d3-a83825d994e0 5->6 (max: 6)}]
+2026-11-09T20:42:03Z   pod triggered scale-up: [{eks-game-pool-9cd0e0fa-6bd6-8f78-e0d3-a83825d994e0 4->5 (max: 6)}]

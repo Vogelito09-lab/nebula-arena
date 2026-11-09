@@ -98,6 +98,14 @@ resource "aws_eks_addon" "pod_identity" {
   depends_on   = [aws_eks_node_group.juego]
 }
 
+# metrics-server: lo necesita el HPA del matchmaker (capa 2) para medir la CPU.
+# EKS no lo trae instalado; sin él, el HPA muestra "cpu: <unknown>".
+resource "aws_eks_addon" "metrics_server" {
+  cluster_name = aws_eks_cluster.nebula.name
+  addon_name   = "metrics-server"
+  depends_on   = [aws_eks_node_group.juego]
+}
+
 # --- Permisos del Cluster Autoscaler (solo sobre los grupos de ESTE clúster) --
 resource "aws_iam_role" "autoscaler" {
   name = "nebula-cluster-autoscaler"

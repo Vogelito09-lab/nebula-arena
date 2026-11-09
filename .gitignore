@@ -16,3 +16,6 @@ key.json
 
 # paquetes que arma terraform (zip de la Lambda)
 .build/
+
+# correo de alertas y otros valores locales de Terraform
+infra-aws/*.auto.tfvars

@@ -5,6 +5,26 @@ del juego, y actualizar la flota con la etiqueta del commit.
 
 Archivo: [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml).
 
+## Entregado en AWS (2026-11-09)
+
+Se usó la variante AWS del material: `aws-actions/configure-aws-credentials`, `aws-actions/amazon-ecr-login@v2`, ECR y EKS.
+
+| Trabajo | Qué hace | Resultado |
+|---|---|---|
+| `pruebas` | pytest del servidor (82), del matchmaker (5) y de la tabla de líderes (20) | ✅ 18 s |
+| `smoke` | construye la imagen y juega una partida de 10 jugadores contra el contenedor; exige tick rate ≥ 19 | ✅ 22 s |
+| `publicar` | sube `nebula-server:<sha>` y `matchmaker:<sha>` a ECR | ✅ 18 s |
+| `desplegar` | parcha la flota de Agones y el matchmaker en EKS con la imagen del commit, y espera servidores `Ready` con la versión nueva | ✅ 24 s |
+
+Corrida: [run 42694334223](https://github.com/Vogelito09-lab/nebula-arena/actions/runs/42694334223), commit `c295bf8`, 1 min 33 s en total. Los 3 servidores `Ready` quedaron con la imagen `nebula-server:c295bf8…`. Evidencia: `entrega/evidencias/3.2-pipeline/` (captura y salida de `kubectl`).
+
+**Seguridad:**
+- **Identidad de GitHub:** usuario IAM `nebula-github` con permisos mínimos (subir a sus dos repositorios de ECR y `eks:DescribeCluster`). Dentro de Kubernetes solo puede parchar la flota y el matchmaker (`k8s/aws/rbac-github.yaml`). Su llave vive solo en los secretos de GitHub.
+- **Lo ideal habría sido OIDC, sin llaves guardadas** (estaba escrito en Terraform). La cuenta del plan gratuito lo bloquea: `iam:CreateOpenIDConnectProvider` tiene un *explicit deny* en la política de control de servicios de AWS.
+- **Imágenes inmutables:** ECR no deja reescribir una etiqueta, así que cada versión desplegada se rastrea a su commit. Además, ECR escanea vulnerabilidades al subir.
+
+## Versión original para Google Cloud
+
 | Paso | Estado |
 |---|---|
 | Código y Dockerfile de la 3.3 | Hecho |

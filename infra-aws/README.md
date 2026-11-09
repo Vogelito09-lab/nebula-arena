@@ -9,18 +9,29 @@ La versión de Google Cloud sigue en [`infra/`](../infra). Esta carpeta hace lo 
 La cuenta del plan gratuito solo permite la región **us-east-2 (Ohio)**.
 
 ## Requisitos
-- AWS CLI v2 y Terraform ≥ 1.6.
+- AWS CLI v2 y Terraform ≥ 1.10 (por el bloqueo nativo del estado en S3).
 - Sesión iniciada con `aws login --region us-east-2`. Son credenciales temporales: no hay llaves guardadas en el repo ni en Terraform.
 
 ## Uso
 ```powershell
 cd infra-aws
-terraform init
+# solo la primera vez: bucket privado y versionado para el estado de Terraform
+$id = aws sts get-caller-identity --query Account --output text
+aws s3api create-bucket --bucket nebula-tfstate-$id --region us-east-2 --create-bucket-configuration LocationConstraint=us-east-2
+aws s3api put-bucket-versioning --bucket nebula-tfstate-$id --versioning-configuration Status=Enabled
+aws s3api put-public-access-block --bucket nebula-tfstate-$id --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+
+terraform init "-backend-config=bucket=nebula-tfstate-$id"
 # solo la primera vez: crea la llave de POST /score en SSM (no se muestra)
 powershell -ExecutionPolicy Bypass -File .\crear-llave.ps1
-terraform apply
-powershell -ExecutionPolicy Bypass -File .\probar-tabla.ps1   # prueba como los curl del material
-terraform destroy   # al terminar la sesión, para no gastar crédito
+# opcional: correo para la alarma de presupuesto (archivo ignorado por Git)
+'correo_alertas = "tu@correo"' | Out-File -Encoding ascii local.auto.tfvars
+
+terraform fmt -check; terraform validate
+terraform plan -out plan.tfplan     # se revisa en el pull request
+terraform apply plan.tfplan         # aplica exactamente lo revisado
+powershell -ExecutionPolicy Bypass -File .\desplegar-juego.ps1 -Etiqueta <sha>
+terraform destroy                   # al terminar la sesión, para no gastar crédito
 ```
 
 `crear-llave.ps1` crea la llave fuera de Terraform a propósito. Así su valor nunca queda en el código ni en el archivo de estado. La Lambda solo conoce el **nombre** del parámetro, y su rol solo puede leer ese parámetro.
