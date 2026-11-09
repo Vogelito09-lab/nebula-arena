@@ -1,0 +1,11 @@
+﻿Metricas de la Lambda durante la prueba DESPUES de la mejora (cache de /top 2 s; API Gateway 1000 req/s):
+Duracion promedio (ms): 13.0 (antes 50)
+Duracion p50 (ms): 2.1   p90: 48.3   minima: 0.99
+Concurrencia maxima: 10  <- sigue siendo el limite de la cuenta nueva
+Throttles: 98376
+Invocaciones atendidas: 29695 (antes 9314)
+
+Resumen Locust (500 usuarios, 5 min):
+ANTES : 132673 peticiones, 10503 exitosas (~35/s), errores 429 (API Gateway) y 503 (Lambda)
+DESPUES: 133367 peticiones, 29786 exitosas (~99/s), solo 503 (limite de 10 Lambdas a la vez)
+Conclusion: la cache y el nuevo limite eliminaron los 429 y triplicaron lo atendido; el cuello de botella restante es la cuota de concurrencia de Lambda (10) de la cuenta nueva. Solucion: solicitar aumento de cuota en Service Quotas (valor normal de AWS: 1000).

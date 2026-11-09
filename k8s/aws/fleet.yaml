@@ -1,0 +1,36 @@
+# Flota de Nebula Arena en EKS (práctica 3.3, variante AWS).
+# Igual que k8s/fleet.yaml, con dos cambios:
+#   - la imagen viene de ECR (<REGISTRO> = salida "registro" de infra-aws);
+#     el pipeline de 3.2 cambia la etiqueta por el SHA del commit.
+#   - cada partida manda su resultado a la tabla de líderes de la 3.5
+#     (Lambda). La llave sale del Secret nebula-score-key (nunca en el repo).
+apiVersion: agones.dev/v1
+kind: Fleet
+metadata:
+  name: nebula-fleet
+spec:
+  replicas: 3
+  template:
+    spec:
+      ports:
+        - name: game
+          containerPort: 7654
+          protocol: TCP           # WebSocket viaja sobre TCP
+      health: { initialDelaySeconds: 10, periodSeconds: 5 }
+      template:
+        spec:
+          containers:
+            - name: nebula
+              image: <REGISTRO>/nebula-server:1.2
+              ports:
+                - name: metrics   # lo lee Prometheus (3.4)
+                  containerPort: 9100
+              env:
+                - name: LEADERBOARD_URL
+                  value: <URL_TABLA_LIDERES>
+                - name: SCORE_API_KEY
+                  valueFrom:
+                    secretKeyRef: { name: nebula-score-key, key: llave, optional: true }
+              resources:
+                requests: { cpu: "250m", memory: "256Mi" }
+                limits:   { cpu: "500m", memory: "512Mi" }

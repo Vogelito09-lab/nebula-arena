@@ -1,0 +1,88 @@
+﻿Recursos de la practica 3.5 en AWS segun la propia AWS, 2026-11-09 13:55
+
+> aws dynamodb describe-table --table-name nebula-scores
+{
+    "Nombre": "nebula-scores",
+    "Estado": "ACTIVE",
+    "Llave": [
+        {
+            "AttributeName": "jugador",
+            "KeyType": "HASH"
+        }
+    ],
+    "Cobro": "PAY_PER_REQUEST",
+    "Elementos": 0
+}
+
+> aws lambda get-function-configuration --function-name nebula-leaderboard
+{
+    "Nombre": "nebula-leaderboard",
+    "Runtime": "python3.12",
+    "MemoriaMB": 256,
+    "TimeoutS": 5,
+    "Estado": "Active",
+    "Variables": {
+        "TABLA": "nebula-scores",
+        "SCORE_API_KEY_PARAM": "/nebula/score-api-key"
+    }
+}
+
+> aws apigatewayv2 get-routes
+[
+    {
+        "Nombre": "nebula-leaderboard",
+        "URL": "https://5d7wm0pa26.execute-api.us-east-2.amazonaws.com",
+        "Protocolo": "HTTP"
+    }
+]
+[
+    "POST /score",
+    "GET /top",
+    "GET /healthz",
+    "GET /jugador/{jugador}"
+]
+
+> aws apigatewayv2 get-stage (limites de peticiones)
+{
+    "DetailedMetricsEnabled": false,
+    "ThrottlingBurstLimit": 200,
+    "ThrottlingRateLimit": 100.0
+}
+
+> aws iam get-role-policy (permisos minimos de la Lambda)
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": [
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+            ],
+            "Effect": "Allow",
+            "Resource": "arn:aws:logs:us-east-2:********1139:log-group:/aws/lambda/nebula-leaderboard:*"
+        },
+        {
+            "Action": [
+                "dynamodb:UpdateItem",
+                "dynamodb:GetItem",
+                "dynamodb:Scan"
+            ],
+            "Effect": "Allow",
+            "Resource": "arn:aws:dynamodb:us-east-2:********1139:table/nebula-scores"
+        },
+        {
+            "Action": "ssm:GetParameter",
+            "Effect": "Allow",
+            "Resource": "arn:aws:ssm:us-east-2:********1139:parameter/nebula/score-api-key"
+        }
+    ]
+}
+
+> aws ssm describe-parameters (la llave existe y esta cifrada; su valor NO se muestra)
+[
+    {
+        "Nombre": "/nebula/score-api-key",
+        "Tipo": "SecureString",
+        "Version": 1
+    }
+]

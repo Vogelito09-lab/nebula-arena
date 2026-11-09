@@ -1,0 +1,19 @@
+﻿Partida real en EKS a traves del matchmaker, 2026-11-09 14:24
+
+> POST http://a6cd6956a66f14954a5b0517b09e7786-2138136351.us-east-2.elb.amazonaws.com/match {"jugador":"carlos"}
+{
+    "address":  "ec2-3-139-56-74.us-east-2.compute.amazonaws.com",
+    "gameServerName":  "nebula-fleet-nrpzj-2nt49",
+    "port":  7981
+}
+
+> cliente_prueba.py --jugadores 10 --segundos 15 (desde la PC del alumno, por internet)
+10 jugadores, 15 s, 130 pings
+RTT p50=106.30 ms  p95=133.42 ms  p99=147.01 ms
+
+> kubectl get gameservers
+NAME                       STATE       ADDRESS                                           PORT   NODE                                       AGE
+nebula-fleet-nrpzj-2nt49   Shutdown    ec2-3-139-56-74.us-east-2.compute.amazonaws.com   7981   ip-10-0-31-58.us-east-2.compute.internal   103s
+nebula-fleet-nrpzj-66hbb   Ready       ec2-3-139-56-74.us-east-2.compute.amazonaws.com   7610   ip-10-0-31-58.us-east-2.compute.internal   103s
+nebula-fleet-nrpzj-68727   Ready       ec2-3-139-56-74.us-east-2.compute.amazonaws.com   7041   ip-10-0-31-58.us-east-2.compute.internal   103s
+nebula-fleet-nrpzj-rq88t   Scheduled   ec2-3-139-56-74.us-east-2.compute.amazonaws.com   7145   ip-10-0-31-58.us-east-2.compute.internal   0s

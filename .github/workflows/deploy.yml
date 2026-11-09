@@ -1,23 +1,26 @@
-# Práctica 3.2 — Pipeline CI/CD de Nebula Arena.
+# Práctica 3.2 — Pipeline CI/CD de Nebula Arena (variante AWS del material).
 #
 # Basado en el workflow del material (pruebas → imagen con el SHA del commit →
-# Artifact Registry → actualizar la flota), adaptado a la carpeta server/.
+# registro → actualizar la flota), con las acciones de AWS que indica el
+# material: aws-actions/configure-aws-credentials y aws-actions/amazon-ecr-login.
 #
 # Trabajos:
-#   pruebas  : pytest (unitarias + funcionamiento). Si fallan, no se publica nada.
+#   pruebas  : pytest del servidor, del matchmaker y de la tabla de líderes.
+#              Si fallan, no se publica nada.
 #   smoke    : construye la imagen y juega una partida corta de 10 jugadores contra
 #              el contenedor (la "partida simulada corta" del material).
-#   publicar : sube nebula-server:<sha> a Artifact Registry.
-#   desplegar: cambia la imagen de la flota en GKE por la del commit. Agones solo
+#   publicar : sube nebula-server:<sha> y matchmaker:<sha> a ECR.
+#   desplegar: cambia la imagen de la flota en EKS por la del commit. Agones solo
 #              reemplaza servidores libres; los Allocated terminan su partida
 #              antes de apagarse (drenado).
 #
-# publicar y desplegar solo corren cuando el repositorio tiene configurado:
-#   Variables (Settings → Secrets and variables → Actions → Variables):
-#     GCP_PROJECT   ID del proyecto de Google Cloud
-#   Secretos:
-#     GCP_SA_KEY    contenido de key.json de la cuenta de servicio github-deployer
-# Mientras no existan, el pipeline corre pruebas y smoke test y queda en verde.
+# Identidad: usuario IAM nebula-github con permisos mínimos (infra-aws/github.tf).
+# (OIDC sin llaves sería lo ideal, pero el plan gratuito de AWS lo bloquea.)
+# publicar y desplegar solo corren si el repositorio tiene configurado
+# (Settings → Secrets and variables → Actions):
+#   Secretos : AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY  (llave del usuario nebula-github)
+#   Variable : AWS_ACTIVO = true
+# Sin ellos, el pipeline corre pruebas y smoke test y queda en verde.
 name: nebula-server-ci
 
 on:
@@ -27,21 +30,28 @@ on:
   workflow_dispatch:
 
 env:
-  REGION: us-central1
-  ZONA: us-central1-a
+  AWS_REGION: us-east-2
   CLUSTER: nebula
-  IMG: us-central1-docker.pkg.dev/${{ vars.GCP_PROJECT }}/nebula/nebula-server
+
+permissions:
+  contents: read
 
 jobs:
   pruebas:
     runs-on: ubuntu-latest
-    defaults: { run: { working-directory: server } }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
-      - name: Pruebas
+      - name: Pruebas del servidor de juego
+        working-directory: server
         run: pip install -r requirements-dev.txt && pytest -q
+      - name: Pruebas del matchmaker
+        working-directory: matchmaking
+        run: pip install -r requirements-dev.txt && pytest -q
+      - name: Pruebas de la tabla de líderes (Lambda)
+        working-directory: serverless/aws
+        run: pytest -q
 
   smoke:
     needs: pruebas
@@ -67,43 +77,57 @@ jobs:
 
   publicar:
     needs: smoke
-    if: github.event_name == 'push' && vars.GCP_PROJECT != ''
+    if: github.event_name == 'push' && vars.AWS_ACTIVO == 'true'
     runs-on: ubuntu-latest
+    outputs:
+      registro: ${{ steps.ecr.outputs.registry }}
     steps:
       - uses: actions/checkout@v4
-      - uses: google-github-actions/auth@v2
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-      - uses: google-github-actions/setup-gcloud@v2
-      - name: Construir y publicar imagen
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+          # el número de cuenta no es secreto; si se enmascara, GitHub no deja
+          # pasar la dirección del registro al trabajo "desplegar"
+          mask-aws-account-id: false
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Construir y publicar imágenes
+        env:
+          REGISTRO: ${{ steps.ecr.outputs.registry }}
         run: |
-          gcloud auth configure-docker $REGION-docker.pkg.dev --quiet
-          docker build -t $IMG:${{ github.sha }} server
-          docker push $IMG:${{ github.sha }}
+          docker build -t $REGISTRO/nebula-server:${{ github.sha }} server
+          docker push $REGISTRO/nebula-server:${{ github.sha }}
+          docker build -t $REGISTRO/matchmaker:${{ github.sha }} matchmaking
+          docker push $REGISTRO/matchmaker:${{ github.sha }}
 
   desplegar:
     needs: publicar
     runs-on: ubuntu-latest
+    env:
+      IMG: ${{ needs.publicar.outputs.registro }}/nebula-server:${{ github.sha }}
+      IMG_MM: ${{ needs.publicar.outputs.registro }}/matchmaker:${{ github.sha }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: google-github-actions/auth@v2
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-      - uses: google-github-actions/get-gke-credentials@v2
-        with:
-          cluster_name: ${{ env.CLUSTER }}
-          location: ${{ env.ZONA }}
-      - name: Actualizar la flota a la imagen del commit
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Conectar kubectl al clúster
+        run: aws eks update-kubeconfig --name $CLUSTER --region $AWS_REGION
+      - name: Actualizar la flota y el matchmaker a la imagen del commit
         run: |
-          sed -i "s|image: .*nebula-server:.*|image: $IMG:${{ github.sha }}|" k8s/fleet.yaml
-          grep "image:" k8s/fleet.yaml
-          kubectl apply -f k8s/fleet.yaml
+          # El rol de GitHub solo puede parchar la flota y el matchmaker (k8s/aws/rbac-github.yaml)
+          kubectl patch fleet nebula-fleet --type=json \
+            -p "[{\"op\":\"replace\",\"path\":\"/spec/template/spec/template/spec/containers/0/image\",\"value\":\"$IMG\"}]"
+          kubectl set image deployment/matchmaker matchmaker=$IMG_MM
       - name: Esperar a que la flota tenga servidores Ready con la versión nueva
         run: |
           for i in $(seq 1 30); do
             listos=$(kubectl get gameservers -l agones.dev/fleet=nebula-fleet \
               -o jsonpath='{range .items[*]}{.status.state} {.spec.template.spec.containers[0].image}{"\n"}{end}' \
-              | grep -c "^Ready $IMG:${{ github.sha }}$" || true)
+              | grep -c "^Ready $IMG$" || true)
             echo "servidores Ready con la versión nueva: $listos"
             [ "$listos" -ge 1 ] && exit 0
             sleep 10

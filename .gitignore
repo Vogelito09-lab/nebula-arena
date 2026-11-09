@@ -13,3 +13,6 @@ key.json
 *.tfstate
 *.tfstate.*
 *.tfplan
+
+# paquetes que arma terraform (zip de la Lambda)
+.build/

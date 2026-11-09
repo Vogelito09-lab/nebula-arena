@@ -1,0 +1,857 @@
+﻿data.archive_file.leaderboard: Reading...
+data.archive_file.leaderboard: Read complete after 0s [id=05745697d07fc828dddc45a4aa92c6242c510f50]
+data.aws_availability_zones.zonas: Reading...
+aws_cloudwatch_log_group.leaderboard: Refreshing state... [id=/aws/lambda/nebula-leaderboard]
+data.aws_caller_identity.actual: Reading...
+aws_iam_role.leaderboard: Refreshing state... [id=nebula-leaderboard-lambda]
+aws_apigatewayv2_api.leaderboard: Refreshing state... [id=5d7wm0pa26]
+aws_dynamodb_table.scores: Refreshing state... [id=nebula-scores]
+data.aws_caller_identity.actual: Read complete after 0s [id=********1139]
+aws_apigatewayv2_stage.default: Refreshing state... [id=$default]
+data.aws_availability_zones.zonas: Read complete after 0s [id=us-east-2]
+aws_iam_role_policy.leaderboard: Refreshing state... [id=nebula-leaderboard-lambda:nebula-leaderboard]
+aws_lambda_function.leaderboard: Refreshing state... [id=nebula-leaderboard]
+aws_lambda_permission.api_gateway: Refreshing state... [id=api-gateway]
+aws_apigatewayv2_integration.leaderboard: Refreshing state... [id=g6e6xr2]
+aws_apigatewayv2_route.rutas["GET /healthz"]: Refreshing state... [id=z1g1066]
+aws_apigatewayv2_route.rutas["POST /score"]: Refreshing state... [id=sbvvp89]
+aws_apigatewayv2_route.rutas["GET /jugador/{jugador}"]: Refreshing state... [id=z7appz7]
+aws_apigatewayv2_route.rutas["GET /top"]: Refreshing state... [id=u9zrd67]
+
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+  # aws_ecr_lifecycle_policy.imagenes["matchmaker"] will be created
+  + resource "aws_ecr_lifecycle_policy" "imagenes" {
+      + id          = (known after apply)
+      + policy      = jsonencode(
+            {
+              + rules = [
+                  + {
+                      + action       = {
+                          + type = "expire"
+                        }
+                      + description  = "conservar solo las 10 imagenes mas recientes"
+                      + rulePriority = 1
+                      + selection    = {
+                          + countNumber = 10
+                          + countType   = "imageCountMoreThan"
+                          + tagStatus   = "any"
+                        }
+                    },
+                ]
+            }
+        )
+      + region      = "us-east-2"
+      + registry_id = (known after apply)
+      + repository  = "matchmaker"
+    }
+
+  # aws_ecr_lifecycle_policy.imagenes["nebula-server"] will be created
+  + resource "aws_ecr_lifecycle_policy" "imagenes" {
+      + id          = (known after apply)
+      + policy      = jsonencode(
+            {
+              + rules = [
+                  + {
+                      + action       = {
+                          + type = "expire"
+                        }
+                      + description  = "conservar solo las 10 imagenes mas recientes"
+                      + rulePriority = 1
+                      + selection    = {
+                          + countNumber = 10
+                          + countType   = "imageCountMoreThan"
+                          + tagStatus   = "any"
+                        }
+                    },
+                ]
+            }
+        )
+      + region      = "us-east-2"
+      + registry_id = (known after apply)
+      + repository  = "nebula-server"
+    }
+
+  # aws_ecr_repository.imagenes["matchmaker"] will be created
+  + resource "aws_ecr_repository" "imagenes" {
+      + arn                  = (known after apply)
+      + force_delete         = true
+      + id                   = (known after apply)
+      + image_tag_mutability = "IMMUTABLE"
+      + name                 = "matchmaker"
+      + region               = "us-east-2"
+      + registry_id          = (known after apply)
+      + repository_url       = (known after apply)
+      + tags_all             = {
+          + "gestion"  = "terraform"
+          + "proyecto" = "nebula-arena"
+        }
+
+      + image_scanning_configuration {
+          + scan_on_push = true
+        }
+    }
+
+  # aws_ecr_repository.imagenes["nebula-server"] will be created
+  + resource "aws_ecr_repository" "imagenes" {
+      + arn                  = (known after apply)
+      + force_delete         = true
+      + id                   = (known after apply)
+      + image_tag_mutability = "IMMUTABLE"
+      + name                 = "nebula-server"
+      + region               = "us-east-2"
+      + registry_id          = (known after apply)
+      + repository_url       = (known after apply)
+      + tags_all             = {
+          + "gestion"  = "terraform"
+          + "proyecto" = "nebula-arena"
+        }
+
+      + image_scanning_configuration {
+          + scan_on_push = true
+        }
+    }
+
+  # aws_eks_access_entry.github will be created
+  + resource "aws_eks_access_entry" "github" {
+      + access_entry_arn  = (known after apply)
+      + cluster_name      = "nebula"
+      + created_at        = (known after apply)
+      + id                = (known after apply)
+      + kubernetes_groups = [
+          + "github-deployer",
+        ]
+      + modified_at       = (known after apply)
+      + principal_arn     = (known after apply)
+      + region            = "us-east-2"
+      + tags_all          = {
+          + "gestion"  = "terraform"
+          + "proyecto" = "nebula-arena"
+        }
+      + type              = "STANDARD"
+      + user_name         = (known after apply)
+    }
+
+  # aws_eks_addon.pod_identity will be created
+  + resource "aws_eks_addon" "pod_identity" {
+      + addon_name           = "eks-pod-identity-agent"
+      + addon_version        = (known after apply)
+      + arn                  = (known after apply)
+      + cluster_name         = "nebula"
+      + configuration_values = (known after apply)
+      + created_at           = (known after apply)
+      + id                   = (known after apply)
+      + modified_at          = (known after apply)
+      + region               = "us-east-2"
+      + tags_all             = {
+          + "gestion"  = "terraform"
+          + "proyecto" = "nebula-arena"
+        }
+
+      + namespace_config (known after apply)
+    }
+
+  # aws_eks_cluster.nebula will be created
+  + resource "aws_eks_cluster" "nebula" {
+      + arn                           = (known after apply)
+      + bootstrap_self_managed_addons = true
+      + certificate_authority         = (known after apply)
+      + cluster_id                    = (known after apply)
+      + created_at                    = (known after apply)
+      + deletion_protection           = (known after apply)
+      + endpoint                      = (known after apply)
+      + id                            = (known after apply)
+      + identity                      = (known after apply)
+      + name                          = "nebula"
+      + platform_version              = (known after apply)
+      + region                        = "us-east-2"
+      + role_arn                      = (known after apply)
+      + status                        = (known after apply)
+      + tags_all                      = {
+          + "gestion"  = "terraform"
+          + "proyecto" = "nebula-arena"
+        }
+      + version                       = "1.36"
+
+      + access_config {
+          + authentication_mode                         = "API"
+          + bootstrap_cluster_creator_admin_permissions = true
+        }
+
+      + compute_config (known after apply)
+
+      + control_plane_scaling_config (known after apply)
+
+      + kube_api_server_config (known after apply)
+
+      + kube_controller_manager_config (known after apply)
+
+      + kube_scheduler_config (known after apply)
+
+      + kubernetes_network_config (known after apply)
+
+      + storage_config (known after apply)
+
+      + upgrade_policy (known after apply)
+
+      + vpc_config {
+          + cluster_security_group_id = (known after apply)
+          + control_plane_egress_mode = (known after apply)
+          + endpoint_private_access   = true
+          + endpoint_public_access    = true
+          + public_access_cidrs       = (known after apply)
+          + subnet_ids                = (known after apply)
+          + vpc_id                    = (known after apply)
+        }
+    }
+
+  # aws_eks_node_group.juego will be created
+  + resource "aws_eks_node_group" "juego" {
+      + ami_type               = (known after apply)
+      + arn                    = (known after apply)
+      + capacity_type          = (known after apply)
+      + cluster_name           = "nebula"
+      + disk_size              = 20
+      + id                     = (known after apply)
+      + instance_types         = [
+          + "m7i-flex.large",
+        ]
+      + labels                 = {
+          + "rol" = "juego"
+        }
+      + node_group_name        = "game-pool"
+      + node_group_name_prefix = (known after apply)
+      + node_role_arn          = (known after apply)
+      + region                 = "us-east-2"
+      + release_version        = (known after apply)
+      + resources              = (known after apply)
+      + status                 = (known after apply)
+      + subnet_ids             = (known after apply)
+      + tags_all               = {
+          + "gestion"  = "terraform"
+          + "proyecto" = "nebula-arena"
+        }
+      + version                = (known after apply)
+
+      + node_repair_config (known after apply)
+
+      + scaling_config {
+          + desired_size = 2
+          + max_size     = 6
+          + min_size     = 2
+        }
+
+      + update_config (known after apply)
+    }
+
+  # aws_eks_pod_identity_association.autoscaler will be created
+  + resource "aws_eks_pod_identity_association" "autoscaler" {
+      + association_arn      = (known after apply)
+      + association_id       = (known after apply)
+      + cluster_name         = "nebula"
+      + disable_session_tags = false
+      + external_id          = (known after apply)
+      + id                   = (known after apply)
+      + namespace            = "kube-system"
+      + region               = "us-east-2"
+      + role_arn             = (known after apply)
+      + service_account      = "cluster-autoscaler"
+      + tags_all             = {
+          + "gestion"  = "terraform"
+          + "proyecto" = "nebula-arena"
+        }
+    }
+
+  # aws_iam_openid_connect_provider.github will be created
+  + resource "aws_iam_openid_connect_provider" "github" {
+      + arn             = (known after apply)
+      + client_id_list  = [
+          + "sts.amazonaws.com",
+        ]
+      + id              = (known after apply)
+      + tags_all        = {
+          + "gestion"  = "terraform"
+          + "proyecto" = "nebula-arena"
+        }
+      + thumbprint_list = (known after apply)
+      + url             = "https://token.actions.githubusercontent.com"
+    }
+
+  # aws_iam_role.autoscaler will be created
+  + resource "aws_iam_role" "autoscaler" {
+      + arn                   = (known after apply)
+      + assume_role_policy    = jsonencode(
+            {
+              + Statement = [
+                  + {
+                      + Action    = [
+                          + "sts:AssumeRole",
+                          + "sts:TagSession",
+                        ]
+                      + Effect    = "Allow"
+                      + Principal = {
+                          + Service = "pods.eks.amazonaws.com"
+                        }
+                    },
+                ]
+              + Version   = "2012-10-17"
+            }
+        )
+      + create_date           = (known after apply)
+      + force_detach_policies = false
+      + id                    = (known after apply)
+      + managed_policy_arns   = (known after apply)
+      + max_session_duration  = 3600
+      + name                  = "nebula-cluster-autoscaler"
+      + name_prefix           = (known after apply)
+      + path                  = "/"
+      + tags_all              = {
+          + "gestion"  = "terraform"
+          + "proyecto" = "nebula-arena"
+        }
+      + unique_id             = (known after apply)
+
+      + inline_policy (known after apply)
+    }
+
+  # aws_iam_role.cluster will be created
+  + resource "aws_iam_role" "cluster" {
+      + arn                   = (known after apply)
+      + assume_role_policy    = jsonencode(
+            {
+              + Statement = [
+                  + {
+                      + Action    = [
+                          + "sts:AssumeRole",
+                          + "sts:TagSession",
+                        ]
+                      + Effect    = "Allow"
+                      + Principal = {
+                          + Service = "eks.amazonaws.com"
+                        }
+                    },
+                ]
+              + Version   = "2012-10-17"
+            }
+        )
+      + create_date           = (known after apply)
+      + force_detach_policies = false
+      + id                    = (known after apply)
+      + managed_policy_arns   = (known after apply)
+      + max_session_duration  = 3600
+      + name                  = "nebula-eks-cluster"
+      + name_prefix           = (known after apply)
+      + path                  = "/"
+      + tags_all              = {
+          + "gestion"  = "terraform"
+          + "proyecto" = "nebula-arena"
+        }
+      + unique_id             = (known after apply)
+
+      + inline_policy (known after apply)
+    }
+
+  # aws_iam_role.github will be created
+  + resource "aws_iam_role" "github" {
+      + arn                   = (known after apply)
+      + assume_role_policy    = (known after apply)
+      + create_date           = (known after apply)
+      + force_detach_policies = false
+      + id                    = (known after apply)
+      + managed_policy_arns   = (known after apply)
+      + max_session_duration  = 3600
+      + name                  = "nebula-github"
+      + name_prefix           = (known after apply)
+      + path                  = "/"
+      + tags_all              = {
+          + "gestion"  = "terraform"
+          + "proyecto" = "nebula-arena"
+        }
+      + unique_id             = (known after apply)
+
+      + inline_policy (known after apply)
+    }
+
+  # aws_iam_role.nodos will be created
+  + resource "aws_iam_role" "nodos" {
+      + arn                   = (known after apply)
+      + assume_role_policy    = jsonencode(
+            {
+              + Statement = [
+                  + {
+                      + Action    = "sts:AssumeRole"
+                      + Effect    = "Allow"
+                      + Principal = {
+                          + Service = "ec2.amazonaws.com"
+                        }
+                    },
+                ]
+              + Version   = "2012-10-17"
+            }
+        )
+      + create_date           = (known after apply)
+      + force_detach_policies = false
+      + id                    = (known after apply)
+      + managed_policy_arns   = (known after apply)
+      + max_session_duration  = 3600
+      + name                  = "nebula-eks-nodos"
+      + name_prefix           = (known after apply)
+      + path                  = "/"
+      + tags_all              = {
+          + "gestion"  = "terraform"
+          + "proyecto" = "nebula-arena"
+        }
+      + unique_id             = (known after apply)
+
+      + inline_policy (known after apply)
+    }
+
+  # aws_iam_role_policy.autoscaler will be created
+  + resource "aws_iam_role_policy" "autoscaler" {
+      + id          = (known after apply)
+      + name        = "nebula-cluster-autoscaler"
+      + name_prefix = (known after apply)
+      + policy      = jsonencode(
+            {
+              + Statement = [
+                  + {
+                      + Action   = [
+                          + "autoscaling:DescribeAutoScalingGroups",
+                          + "autoscaling:DescribeAutoScalingInstances",
+                          + "autoscaling:DescribeLaunchConfigurations",
+                          + "autoscaling:DescribeScalingActivities",
+                          + "autoscaling:DescribeTags",
+                          + "ec2:DescribeImages",
+                          + "ec2:DescribeInstanceTypes",
+                          + "ec2:DescribeLaunchTemplateVersions",
+                          + "ec2:GetInstanceTypesFromInstanceRequirements",
+                          + "eks:DescribeNodegroup",
+                        ]
+                      + Effect   = "Allow"
+                      + Resource = "*"
+                    },
+                  + {
+                      + Action    = [
+                          + "autoscaling:SetDesiredCapacity",
+                          + "autoscaling:TerminateInstanceInAutoScalingGroup",
+                        ]
+                      + Condition = {
+                          + StringEquals = {
+                              + "aws:ResourceTag/k8s.io/cluster-autoscaler/nebula" = "owned"
+                            }
+                        }
+                      + Effect    = "Allow"
+                      + Resource  = "*"
+                    },
+                ]
+              + Version   = "2012-10-17"
+            }
+        )
+      + role        = (known after apply)
+    }
+
+  # aws_iam_role_policy.github will be created
+  + resource "aws_iam_role_policy" "github" {
+      + id          = (known after apply)
+      + name        = "nebula-github"
+      + name_prefix = (known after apply)
+      + policy      = (known after apply)
+      + role        = (known after apply)
+    }
+
+  # aws_iam_role_policy_attachment.cluster will be created
+  + resource "aws_iam_role_policy_attachment" "cluster" {
+      + id         = (known after apply)
+      + policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+      + role       = "nebula-eks-cluster"
+    }
+
+  # aws_iam_role_policy_attachment.nodos["arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"] will be created
+  + resource "aws_iam_role_policy_attachment" "nodos" {
+      + id         = (known after apply)
+      + policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+      + role       = "nebula-eks-nodos"
+    }
+
+  # aws_iam_role_policy_attachment.nodos["arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"] will be created
+  + resource "aws_iam_role_policy_attachment" "nodos" {
+      + id         = (known after apply)
+      + policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+      + role       = "nebula-eks-nodos"
+    }
+
+  # aws_iam_role_policy_attachment.nodos["arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"] will be created
+  + resource "aws_iam_role_policy_attachment" "nodos" {
+      + id         = (known after apply)
+      + policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+      + role       = "nebula-eks-nodos"
+    }
+
+  # aws_internet_gateway.nebula will be created
+  + resource "aws_internet_gateway" "nebula" {
+      + arn      = (known after apply)
+      + id       = (known after apply)
+      + owner_id = (known after apply)
+      + region   = "us-east-2"
+      + tags     = {
+          + "Name" = "nebula-igw"
+        }
+      + tags_all = {
+          + "Name"     = "nebula-igw"
+          + "gestion"  = "terraform"
+          + "proyecto" = "nebula-arena"
+        }
+      + vpc_id   = (known after apply)
+    }
+
+  # aws_route_table.publica will be created
+  + resource "aws_route_table" "publica" {
+      + arn              = (known after apply)
+      + id               = (known after apply)
+      + owner_id         = (known after apply)
+      + propagating_vgws = (known after apply)
+      + region           = "us-east-2"
+      + route            = [
+          + {
+              + cidr_block                 = "0.0.0.0/0"
+              + gateway_id                 = (known after apply)
+                # (12 unchanged attributes hidden)
+            },
+        ]
+      + tags             = {
+          + "Name" = "nebula-publica"
+        }
+      + tags_all         = {
+          + "Name"     = "nebula-publica"
+          + "gestion"  = "terraform"
+          + "proyecto" = "nebula-arena"
+        }
+      + vpc_id           = (known after apply)
+    }
+
+  # aws_route_table_association.publica[0] will be created
+  + resource "aws_route_table_association" "publica" {
+      + id             = (known after apply)
+      + region         = "us-east-2"
+      + route_table_id = (known after apply)
+      + subnet_id      = (known after apply)
+    }
+
+  # aws_route_table_association.publica[1] will be created
+  + resource "aws_route_table_association" "publica" {
+      + id             = (known after apply)
+      + region         = "us-east-2"
+      + route_table_id = (known after apply)
+      + subnet_id      = (known after apply)
+    }
+
+  # aws_subnet.publica[0] will be created
+  + resource "aws_subnet" "publica" {
+      + arn                                            = (known after apply)
+      + assign_ipv6_address_on_creation                = false
+      + availability_zone                              = "us-east-2a"
+      + availability_zone_id                           = (known after apply)
+      + cidr_block                                     = "10.0.0.0/20"
+      + enable_dns64                                   = false
+      + enable_resource_name_dns_a_record_on_launch    = false
+      + enable_resource_name_dns_aaaa_record_on_launch = false
+      + id                                             = (known after apply)
+      + ipv6_cidr_block                                = (known after apply)
+      + ipv6_cidr_block_association_id                 = (known after apply)
+      + ipv6_native                                    = false
+      + map_public_ip_on_launch                        = true
+      + owner_id                                       = (known after apply)
+      + private_dns_hostname_type_on_launch            = (known after apply)
+      + region                                         = "us-east-2"
+      + tags                                           = {
+          + "Name"                   = "nebula-publica-0"
+          + "kubernetes.io/role/elb" = "1"
+        }
+      + tags_all                                       = {
+          + "Name"                   = "nebula-publica-0"
+          + "gestion"                = "terraform"
+          + "kubernetes.io/role/elb" = "1"
+          + "proyecto"               = "nebula-arena"
+        }
+      + vpc_id                                         = (known after apply)
+    }
+
+  # aws_subnet.publica[1] will be created
+  + resource "aws_subnet" "publica" {
+      + arn                                            = (known after apply)
+      + assign_ipv6_address_on_creation                = false
+      + availability_zone                              = "us-east-2b"
+      + availability_zone_id                           = (known after apply)
+      + cidr_block                                     = "10.0.16.0/20"
+      + enable_dns64                                   = false
+      + enable_resource_name_dns_a_record_on_launch    = false
+      + enable_resource_name_dns_aaaa_record_on_launch = false
+      + id                                             = (known after apply)
+      + ipv6_cidr_block                                = (known after apply)
+      + ipv6_cidr_block_association_id                 = (known after apply)
+      + ipv6_native                                    = false
+      + map_public_ip_on_launch                        = true
+      + owner_id                                       = (known after apply)
+      + private_dns_hostname_type_on_launch            = (known after apply)
+      + region                                         = "us-east-2"
+      + tags                                           = {
+          + "Name"                   = "nebula-publica-1"
+          + "kubernetes.io/role/elb" = "1"
+        }
+      + tags_all                                       = {
+          + "Name"                   = "nebula-publica-1"
+          + "gestion"                = "terraform"
+          + "kubernetes.io/role/elb" = "1"
+          + "proyecto"               = "nebula-arena"
+        }
+      + vpc_id                                         = (known after apply)
+    }
+
+  # aws_vpc.nebula will be created
+  + resource "aws_vpc" "nebula" {
+      + arn                                  = (known after apply)
+      + cidr_block                           = "10.0.0.0/16"
+      + default_network_acl_id               = (known after apply)
+      + default_route_table_id               = (known after apply)
+      + default_security_group_id            = (known after apply)
+      + dhcp_options_id                      = (known after apply)
+      + enable_dns_hostnames                 = true
+      + enable_dns_support                   = true
+      + enable_network_address_usage_metrics = (known after apply)
+      + id                                   = (known after apply)
+      + instance_tenancy                     = "default"
+      + ipv6_association_id                  = (known after apply)
+      + ipv6_cidr_block                      = (known after apply)
+      + ipv6_cidr_block_network_border_group = (known after apply)
+      + main_route_table_id                  = (known after apply)
+      + owner_id                             = (known after apply)
+      + region                               = "us-east-2"
+      + tags                                 = {
+          + "Name" = "nebula-vpc"
+        }
+      + tags_all                             = {
+          + "Name"     = "nebula-vpc"
+          + "gestion"  = "terraform"
+          + "proyecto" = "nebula-arena"
+        }
+    }
+
+  # aws_vpc_security_group_ingress_rule.juego["tcp"] will be created
+  + resource "aws_vpc_security_group_ingress_rule" "juego" {
+      + arn                    = (known after apply)
+      + cidr_ipv4              = "0.0.0.0/0"
+      + description            = "puertos de partida de Agones (tcp)"
+      + from_port              = 7000
+      + id                     = (known after apply)
+      + ip_protocol            = "tcp"
+      + region                 = "us-east-2"
+      + security_group_id      = (known after apply)
+      + security_group_rule_id = (known after apply)
+      + tags_all               = {
+          + "gestion"  = "terraform"
+          + "proyecto" = "nebula-arena"
+        }
+      + to_port                = 8000
+    }
+
+  # aws_vpc_security_group_ingress_rule.juego["udp"] will be created
+  + resource "aws_vpc_security_group_ingress_rule" "juego" {
+      + arn                    = (known after apply)
+      + cidr_ipv4              = "0.0.0.0/0"
+      + description            = "puertos de partida de Agones (udp)"
+      + from_port              = 7000
+      + id                     = (known after apply)
+      + ip_protocol            = "udp"
+      + region                 = "us-east-2"
+      + security_group_id      = (known after apply)
+      + security_group_rule_id = (known after apply)
+      + tags_all               = {
+          + "gestion"  = "terraform"
+          + "proyecto" = "nebula-arena"
+        }
+      + to_port                = 8000
+    }
+
+  # helm_release.agones will be created
+  + resource "helm_release" "agones" {
+      + atomic                     = false
+      + chart                      = "agones"
+      + cleanup_on_fail            = false
+      + create_namespace           = true
+      + dependency_update          = false
+      + disable_crd_hooks          = false
+      + disable_openapi_validation = false
+      + disable_webhooks           = false
+      + force_update               = false
+      + id                         = (known after apply)
+      + lint                       = false
+      + manifest                   = (known after apply)
+      + max_history                = 0
+      + metadata                   = (known after apply)
+      + name                       = "agones"
+      + namespace                  = "agones-system"
+      + pass_credentials           = false
+      + recreate_pods              = false
+      + render_subchart_notes      = true
+      + replace                    = false
+      + repository                 = "https://agones.dev/chart/stable"
+      + reset_values               = false
+      + reuse_values               = false
+      + skip_crds                  = false
+      + status                     = "deployed"
+      + timeout                    = 900
+      + verify                     = false
+      + version                    = "1.62.0"
+      + wait                       = true
+      + wait_for_jobs              = false
+
+      + set {
+          + name  = "agones.allocator.service.serviceType"
+          + value = "ClusterIP"
+            # (1 unchanged attribute hidden)
+        }
+      + set {
+          + name  = "agones.metrics.serviceMonitor.enabled"
+          + value = "true"
+            # (1 unchanged attribute hidden)
+        }
+      + set {
+          + name  = "agones.ping.install"
+          + value = "false"
+            # (1 unchanged attribute hidden)
+        }
+    }
+
+  # helm_release.cluster_autoscaler will be created
+  + resource "helm_release" "cluster_autoscaler" {
+      + atomic                     = false
+      + chart                      = "cluster-autoscaler"
+      + cleanup_on_fail            = false
+      + create_namespace           = false
+      + dependency_update          = false
+      + disable_crd_hooks          = false
+      + disable_openapi_validation = false
+      + disable_webhooks           = false
+      + force_update               = false
+      + id                         = (known after apply)
+      + lint                       = false
+      + manifest                   = (known after apply)
+      + max_history                = 0
+      + metadata                   = (known after apply)
+      + name                       = "cluster-autoscaler"
+      + namespace                  = "kube-system"
+      + pass_credentials           = false
+      + recreate_pods              = false
+      + render_subchart_notes      = true
+      + replace                    = false
+      + repository                 = "https://kubernetes.github.io/autoscaler"
+      + reset_values               = false
+      + reuse_values               = false
+      + skip_crds                  = false
+      + status                     = "deployed"
+      + timeout                    = 300
+      + verify                     = false
+      + version                    = "9.60.0"
+      + wait                       = true
+      + wait_for_jobs              = false
+
+      + set {
+          + name  = "autoDiscovery.clusterName"
+          + value = "nebula"
+            # (1 unchanged attribute hidden)
+        }
+      + set {
+          + name  = "awsRegion"
+          + value = "us-east-2"
+            # (1 unchanged attribute hidden)
+        }
+      + set {
+          + name  = "extraArgs.scale-down-delay-after-add"
+          + value = "3m"
+            # (1 unchanged attribute hidden)
+        }
+      + set {
+          + name  = "extraArgs.scale-down-unneeded-time"
+          + value = "3m"
+            # (1 unchanged attribute hidden)
+        }
+      + set {
+          + name  = "rbac.serviceAccount.name"
+          + value = "cluster-autoscaler"
+            # (1 unchanged attribute hidden)
+        }
+    }
+
+  # helm_release.monitoreo will be created
+  + resource "helm_release" "monitoreo" {
+      + atomic                     = false
+      + chart                      = "kube-prometheus-stack"
+      + cleanup_on_fail            = false
+      + create_namespace           = true
+      + dependency_update          = false
+      + disable_crd_hooks          = false
+      + disable_openapi_validation = false
+      + disable_webhooks           = false
+      + force_update               = false
+      + id                         = (known after apply)
+      + lint                       = false
+      + manifest                   = (known after apply)
+      + max_history                = 0
+      + metadata                   = (known after apply)
+      + name                       = "monitoreo"
+      + namespace                  = "monitoring"
+      + pass_credentials           = false
+      + recreate_pods              = false
+      + render_subchart_notes      = true
+      + replace                    = false
+      + repository                 = "https://prometheus-community.github.io/helm-charts"
+      + reset_values               = false
+      + reuse_values               = false
+      + skip_crds                  = false
+      + status                     = "deployed"
+      + timeout                    = 900
+      + values                     = [
+          + <<-EOT
+                "alertmanager":
+                  "enabled": false
+                "grafana":
+                  "adminPassword": null
+                "prometheus":
+                  "prometheusSpec":
+                    "podMonitorSelectorNilUsesHelmValues": false
+                    "resources":
+                      "limits":
+                        "memory": "1536Mi"
+                      "requests":
+                        "cpu": "200m"
+                        "memory": "512Mi"
+                    "retention": "1d"
+                    "scrapeInterval": "15s"
+                    "serviceMonitorSelectorNilUsesHelmValues": false
+            EOT,
+        ]
+      + verify                     = false
+      + version                    = "93.1.1"
+      + wait                       = true
+      + wait_for_jobs              = false
+    }
+
+Plan: 32 to add, 0 to change, 0 to destroy.
+
+Changes to Outputs:
+  + cluster           = "nebula"
+  + conectar_kubectl  = "aws eks update-kubeconfig --name nebula --region us-east-2"
+  + registro          = (known after apply)
+  + rol_github        = (known after apply)
+
+─────────────────────────────────────────────────────────────────────────────
+
+Saved the plan to: .build\cluster.tfplan
+
+To perform exactly these actions, run the following command to apply:
+    terraform apply ".build\\cluster.tfplan"
+

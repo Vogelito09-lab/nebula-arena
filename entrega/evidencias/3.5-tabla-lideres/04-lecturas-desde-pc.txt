@@ -1,0 +1,10 @@
+﻿Prueba de lectura desde fuera de AWS (PC del alumno), 2026-11-09 13:54
+GET /top
+[{"posicion": 1, "jugador": "carlos", "puntos": 1800, "partidas": 1, "victorias": 1, "derrotas": 0}, {"posicion": 2, "jugador": "ana", "puntos": 1550, "partidas": 2, "victorias": 1, "derrotas": 1}, {"posicion": 3, "jugador": "beto", "puntos": 900, "partidas": 1, "victorias": 0, "derrotas": 1}]
+
+GET /jugador/ana
+{"jugador": "ana", "puntos": 1550, "partidas": 2, "victorias": 1, "derrotas": 1}
+
+Tiempos de 20 lecturas de /top (ms):
+149, 129, 116, 125, 132, 124, 138, 126, 132, 124, 125, 134, 121, 120, 116, 127, 129, 125, 149, 123
+primera (arranque en frio o conexion nueva): 149 ms; mediana: 125 ms; p95: 149 ms

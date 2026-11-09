@@ -1,0 +1,94 @@
+# Capa 2 del autoescalado (práctica 3.4): servicio SIN estado con HPA por CPU.
+# Variante AWS: imagen en ECR (<REGISTRO> = salida "registro" de infra-aws). El matchmaker solo puede crear GameServerAllocations
+# (permisos mínimos).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: matchmaker
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: matchmaker-allocator
+  namespace: default
+rules:
+  - apiGroups: ["allocation.agones.dev"]
+    resources: ["gameserverallocations"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: matchmaker-allocator
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    name: matchmaker
+    namespace: default
+roleRef:
+  kind: Role
+  name: matchmaker-allocator
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: matchmaker
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: matchmaker }
+  template:
+    metadata:
+      labels: { app: matchmaker }
+    spec:
+      serviceAccountName: matchmaker
+      containers:
+        - name: matchmaker
+          image: <REGISTRO>/matchmaker:1.0
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - { name: FLEET, value: nebula-fleet }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 5
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits:   { cpu: "500m", memory: "256Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: matchmaker
+  namespace: default
+spec:
+  type: LoadBalancer        # en EKS crea un balanceador de AWS con IP publica
+  selector: { app: matchmaker }
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      nodePort: 30080
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: matchmaker-hpa
+  namespace: default
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: matchmaker }
+  minReplicas: 2
+  maxReplicas: 30
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 60 }
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300   # evita subir y bajar en ciclos (flapping)
+

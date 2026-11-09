@@ -1,0 +1,24 @@
+﻿Evidencia: acceso a AWS desde la terminal (aws login, credenciales temporales)
+Fecha: 2026-11-09 13:46
+
+> aws sts get-caller-identity
+{
+    "UserId": "AROA****:<sesion>",
+    "Account": "********1139",
+    "Arn": "arn:aws:sts::********1139:assumed-role/AccountFullAccessRole/<sesion>"
+}
+
+> aws ec2 describe-instance-types (elegibles para el plan gratuito, us-east-2)
+c7i-flex.large	2	4096
+m7i-flex.large	2	8192
+t8i.micro	2	1024
+t4g.micro	2	1024
+t4g.small	2	2048
+t3.small	2	2048
+t8i.small	2	2048
+t3.micro	2	1024
+
+> aws eks list-clusters --region us-east-2
+{
+    "clusters": []
+}

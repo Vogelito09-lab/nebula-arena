@@ -1,0 +1,7 @@
+﻿Metricas de la Lambda durante la prueba ANTES de la mejora (CloudWatch, ventanas de 10 min):
+Duracion promedio (ms): 51.9 / 48.6
+Duracion maxima (ms): 293 / 3543 (arranques en frio)
+Concurrencia maxima: 10 / 10  <- limite de la cuenta nueva
+Throttles (rechazadas por limite): 8070 / 8937
+Invocaciones: 4034 / 5280
+Errores de codigo: 0 / 0

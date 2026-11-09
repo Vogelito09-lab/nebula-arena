@@ -1,0 +1,5 @@
+Method,Name,Error,Occurrences,First Seen,Last Seen
+POST,POST /score,HTTPError('503 Server Error: Service Unavailable for url: POST /score'),3979,2026-11-09T19:56:39Z,2026-11-09T20:01:36Z
+POST,POST /score,HTTPError('429 Client Error: Too Many Requests for url: POST /score'),20705,2026-11-09T19:56:47Z,2026-11-09T20:01:37Z
+GET,GET /top,HTTPError('429 Client Error: Too Many Requests for url: GET /top'),81902,2026-11-09T19:56:47Z,2026-11-09T20:01:37Z
+GET,GET /top,HTTPError('503 Server Error: Service Unavailable for url: GET /top'),15584,2026-11-09T19:56:39Z,2026-11-09T20:01:36Z
