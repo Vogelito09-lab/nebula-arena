@@ -1,0 +1,8 @@
+Method,Name,Error,Occurrences
+WS,desconexion,"BrokenPipeError(32, 'Broken pipe')",14
+WS,conexion,WebSocketConnectionClosedException('Connection to remote host was lost.'),10
+WS,rtt,"ConnectionResetError(104, 'Connection reset by peer')",8
+WS,rtt,JSONDecodeError('Expecting value: line 1 column 1 (char 0)'),6
+WS,desconexion,"ConnectionResetError(104, 'Connection reset by peer')",4
+HTTP,asignacion,HTTPError('503 Server Error: SERVICE UNAVAILABLE for url: http://nebula-control-plane:30080/match'),11
+WS,rtt,WebSocketTimeoutException('Connection timed out'),17

@@ -12,6 +12,15 @@ Cambios respecto al ejemplo del material (mismos nombres de métricas y protocol
 - Cada conexión queda ligada al primer id que envía: un cliente no puede
   sobrescribir la posición de otro jugador.
 - Métricas extra: tick rate efectivo y desconexiones.
+
+Versión 2 (rediseño del juego), compatible con la 1.2:
+- Campos OPCIONALES en el mensaje del jugador: "clase" (interceptor, titan,
+  spectre, destroyer, phantom), "hab" (q, e, s), "ax"/"ay" (punto apuntado) y
+  "mdx"/"mdy" (dirección de movimiento). Un cliente que no los manda juega con
+  la clase por defecto (Spectre), que es exactamente el juego de la 1.2.
+- El snapshot agrega "pr" (prórroga) y "z" (zonas de habilidades); los
+  proyectiles viajan como eventos en "ev".
+- Métricas nuevas: nebula_abilities_total y nebula_projectiles_active.
 """
 import asyncio
 import json
@@ -44,6 +53,8 @@ MENSAJES_INVALIDOS = Counter("nebula_invalid_messages_total",
 CORRECCIONES = Counter("nebula_position_corrections_total",
                        "Movimientos rechazados por el servidor (velocidad o paredes)")
 ESPECTADORES = Gauge("nebula_spectators_connected", "Espectadores conectados al servidor")
+HABILIDADES = Counter("nebula_abilities_total", "Habilidades usadas", ["clase", "habilidad"])
+PROYECTILES = Gauge("nebula_projectiles_active", "Proyectiles simulados en este momento")
 LEADERBOARD_URL = os.getenv("LEADERBOARD_URL", "").rstrip("/")   # 3.5 (opcional)
 
 log = logging.getLogger("nebula")
@@ -72,6 +83,8 @@ def snapshot(eventos=None, ahora=None):
     fin = motor.fin and {k: v for k, v in motor.fin.items() if k != "t"}
     return json.dumps({"t": time.time(), "e": estado, "m": motor.marcador,
                        "r": round(motor.tiempo_restante(ahora), 1),
+                       "pr": motor.prorroga is not None, "z": motor.zonas_publicas(ahora),
+                       "ex": motor.exhibicion,
                        "ev": eventos or [], "fin": fin})
 
 
@@ -105,6 +118,22 @@ def validar(d, mi_id):
     nombre = d.get("nombre")
     if isinstance(nombre, str) and nombre.strip():
         limpio["nombre"] = "".join(c for c in nombre.strip() if c.isprintable())[:16]
+    # ---- campos opcionales de la versión 2: si vienen mal, el mensaje se descarta
+    if "clase" in d:
+        if d["clase"] not in juego.CLASES:
+            return None
+        limpio["clase"] = d["clase"]
+    if "hab" in d:
+        if d["hab"] not in ("q", "e", "s"):
+            return None
+        limpio["hab"] = d["hab"]
+    for a, b, lim in (("ax", "ay", ARENA), ("mdx", "mdy", 1.0)):
+        if a in d or b in d:
+            va, vb = d.get(a), d.get(b)
+            if not (_numero(va) and _numero(vb)):
+                return None
+            limpio[a] = min(lim, max(-lim if lim == 1.0 else 0.0, float(va)))
+            limpio[b] = min(lim, max(-lim if lim == 1.0 else 0.0, float(vb)))
     return limpio
 
 
@@ -119,8 +148,20 @@ async def jugador(ws):
         espectadores.add(ws)
         ESPECTADORES.set(len(espectadores))
         try:
-            await ws.send(json.dumps({"bienvenida": {"espectador": True, "mapa": juego.mapa()}}))
-            await ws.wait_closed()
+            await ws.send(json.dumps({"bienvenida": {"espectador": True, "mapa": juego.mapa(),
+                                                     "clases": juego.CLASES}}))
+            # Hay que leer lo que mande el espectador: si nadie lee, la cola de entrada
+            # se llena (32 mensajes), el keepalive deja de procesarse y la conexión se
+            # cae con 1011 al minuto. Solo se contesta el ping de latencia.
+            async for msg in ws:
+                try:
+                    d = json.loads(msg)
+                except (ValueError, TypeError):
+                    continue
+                if isinstance(d, dict) and _numero(d.get("ping")):
+                    await ws.send(json.dumps({"pong": d["ping"]}))
+        except websockets.ConnectionClosedError:
+            pass
         finally:
             espectadores.discard(ws)
             ESPECTADORES.set(len(espectadores))
@@ -159,15 +200,23 @@ async def jugador(ws):
                 MENSAJES_INVALIDOS.inc()
                 return
             mi_id = limpio["id"]
-            yo = motor.unir(mi_id, limpio["x"], limpio["y"], limpio.get("nombre"), ahora)
+            yo = motor.unir(mi_id, limpio["x"], limpio["y"], limpio.get("nombre"), ahora,
+                            clase=limpio.get("clase"))
             await ws.send(json.dumps({"bienvenida": {
                 "id": mi_id, "equipo": yo["equipo"], "x": yo["x"], "y": yo["y"],
-                "mapa": juego.mapa()}}))
+                "clase": yo["clase"], "mapa": juego.mapa(), "clases": juego.CLASES}}))
             return
+        if "clase" in limpio:
+            motor.elegir_clase(mi_id, limpio["clase"])
         correccion = motor.mover(mi_id, limpio["x"], limpio["y"], limpio.get("dir"), ahora)
         if correccion:
             CORRECCIONES.inc()
             await ws.send(json.dumps({"correccion": correccion}))
+        if "hab" in limpio:
+            info = motor.habilidad(mi_id, limpio["hab"], ahora, limpio.get("ax"), limpio.get("ay"),
+                                   limpio.get("mdx"), limpio.get("mdy"))
+            if info and info.get("pos"):             # desplazamiento: el servidor movió la nave
+                await ws.send(json.dumps({"correccion": info["pos"]}))
         if limpio["dispara"]:
             motor.disparar(mi_id, ahora)
 
@@ -232,8 +281,19 @@ async def bucle():
             ventana_t, ventana_n = t, 0
         ventana_n += 1
         ahora = time.monotonic()
+        # sin humanos pero con espectadores: partida de exhibición solo con bots
+        # (no cuenta como partida: no marca "iniciada", no apaga el GameServer y
+        # publicar_resultados ignora a los bots)
+        if espectadores and not motor.humanos():
+            motor.iniciar_exhibicion(ahora)
+        elif not espectadores and motor.exhibicion:
+            motor.terminar_exhibicion()
         if estado:
             eventos = motor.paso(ahora, TICK_S)
+            for clase, hab in motor.usos_habilidad:
+                HABILIDADES.labels(clase, hab).inc()
+            motor.usos_habilidad.clear()
+            PROYECTILES.set(len(motor.proy))
             if any(ev["tipo"] == "fin" for ev in eventos):
                 log.info("fin de partida: %s", motor.fin["marcador"])
                 asyncio.get_running_loop().run_in_executor(None, publicar_resultados, motor.fin)

@@ -1,67 +1,209 @@
-// Cliente de Nebula Arena: entrada, red, predicción, interpolación y HUD.
-// El servidor es autoritativo: aquí solo se predice el movimiento propio y se
-// dibuja lo que el servidor confirma (disparos, daño, bajas, marcador).
-import { Escena } from "./escena.js";
-import { MAPA_MENU } from "./mapa-menu.js";
+// Nebula Arena V2: menú con hangar 3D, ajustes, estadísticas locales y la
+// sesión de partida. El servidor (server/server.py) sigue siendo la autoridad.
+import "./estilos.css";
+import { ajustes, guardar } from "./ajustes.js";
+import { audio } from "./audio.js";
+import { CLASE_DEFECTO, CLASES } from "./datos-juego.js";
+import { engancharLienzo } from "./entrada.js";
+import { borrarEstadisticas, leerEstadisticas } from "./estadisticas.js";
+import { Hangar } from "./hangar.js";
+import { Hud } from "./hud.js";
+import { Sesion } from "./juego.js";
+import { Motor } from "./render/motor.js";
 
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const LEADERBOARD = params.get("leaderboard");
 const SERVIDOR_DEF = params.get("servidor") || `ws://${location.hostname || "localhost"}:7654`;
+const ORDEN = ["interceptor", "titan", "spectre", "destroyer", "phantom"];
+const ATRIBUTOS = { velocidad: "VELOCIDAD", blindaje: "BLINDAJE", dano: "DAÑO", alcance: "ALCANCE",
+  cadencia: "CADENCIA", precision: "PRECISIÓN" };
 
-// Mismas constantes que server/juego.py
-const VELOCIDAD = 12, RADIO = 1, CADENCIA_S = 0.25, RESPAWN_S = 3, ENVIO_HZ = 20;
-const RETRASO_INTERP_MS = 100;
+const lienzo = $("lienzo");
+const motor = new Motor(lienzo, ajustes.calidad);
+const hangar = new Hangar(lienzo);
+const hud = new Hud();
+engancharLienzo(lienzo);
+let sesion = null;
+let claseVista = ajustes.clase && CLASES[ajustes.clase] ? ajustes.clase : CLASE_DEFECTO;
 
-const escena = new Escena($("lienzo"));
-if (import.meta.env.DEV) window.__escena = escena;   // depuración
-let mapa = null;
-
-// ---------------------------------------------------------------- estado
-const st = {
-  ws: null, modo: null,             // "jugar" | "espectar"
-  id: null, equipo: null, nombre: "",
-  x: 50, y: 50, dir: 0,             // posición predicha del jugador local
-  vivo: true, muertoHasta: 0,
-  teclas: new Set(), mouse: { x: 0, y: 0, nx: 0, ny: 0 }, disparando: false,
-  ultimoDisparo: 0, ultimoEnvio: 0,
-  snaps: [],                        // [{ t: ms local, e }]
-  ultimo: null,                     // último snapshot completo
-  ping: null, finMostrado: false,
-};
-
-// ---------------------------------------------------------------- colisión local (espejo de juego.choca)
-function choca(x, y, r = RADIO) {
-  if (!mapa) return false;
-  const T = mapa.tamano;
-  if (x < r || y < r || x > T - r || y > T - r) return true;
-  for (const [ox, oy, w, h] of mapa.obstaculos) {
-    const cx = Math.min(Math.max(x, ox), ox + w), cy = Math.min(Math.max(y, oy), oy + h);
-    if ((x - cx) ** 2 + (y - cy) ** 2 < r * r) return true;
-  }
-  return false;
-}
+motor.usar(hangar.escena, hangar.camara);
+hangar.mostrarClase(claseVista, ajustes.colorHangar);
+if (import.meta.env.DEV) window.__nebula = { motor, hangar, get sesion() { return sesion; } };
 
 // ---------------------------------------------------------------- pantallas
+const PANTALLAS = ["menu", "hangar", "ajustes", "estadisticas", "clasificacion"];
+let anterior = "menu";
 function mostrar(id) {
-  for (const p of ["inicio", "clasificacion", "resultados"]) $(p).classList.toggle("visible", p === id);
+  for (const p of PANTALLAS) $(p).classList.toggle("visible", p === id);
+  if (id === "menu" || id === "hangar") {
+    hangar.ponerModo(id === "hangar" ? "hangar" : "menu");
+    document.body.dataset.pantalla = id;
+  }
 }
 function aviso(txt, error = false) {
   const a = $("estado-conexion");
   a.textContent = txt;
   a.classList.toggle("error", error);
 }
+// el audio arranca con la primera interacción (regla de los navegadores)
+addEventListener("pointerdown", () => audio.iniciar(), { once: false });
+addEventListener("keydown", () => audio.iniciar(), { once: true });
+for (const b of document.querySelectorAll("button")) b.addEventListener("click", () => audio.ui("clic"));
 
 $("servidor").value = SERVIDOR_DEF;
 $("nombre").value = localStorage.getItem("nebula-nombre") || "";
 if (LEADERBOARD) $("btn-clasificacion").hidden = false;
 
-$("form-inicio").addEventListener("submit", (ev) => { ev.preventDefault(); conectar("jugar"); });
-$("btn-espectar").addEventListener("click", () => conectar("espectar"));
-$("btn-salir-res").addEventListener("click", salir);
+$("form-inicio").addEventListener("submit", (ev) => { ev.preventDefault(); jugar("jugar"); });
+$("btn-espectar").addEventListener("click", () => jugar("espectar"));
+$("btn-hangar").addEventListener("click", () => { pintarHangar(); mostrar("hangar"); });
+$("btn-ajustes").addEventListener("click", () => abrirAjustes("menu"));
+$("btn-estadisticas").addEventListener("click", () => { pintarEstadisticas(); mostrar("estadisticas"); });
 $("btn-clasificacion").addEventListener("click", verClasificacion);
-$("btn-cerrar-clasificacion").addEventListener("click", () => mostrar("inicio"));
+for (const b of document.querySelectorAll("[data-volver]")) {
+  b.addEventListener("click", () => {
+    if (b.closest("#ajustes") && sesion) { $("ajustes").classList.remove("visible"); return; }
+    mostrar("menu");
+  });
+}
 
+// ---------------------------------------------------------------- menú: ficha de la nave elegida
+function pintarMenuClase() {
+  const c = CLASES[claseVista];
+  $("menu-clase-nombre").textContent = c.nombre.toUpperCase();
+  $("menu-clase-rol").textContent = c.rol;
+}
+pintarMenuClase();
+
+// ---------------------------------------------------------------- hangar
+let colorHangar = ajustes.colorHangar;
+function pintarHangar() {
+  const lista = $("lista-clases");
+  lista.replaceChildren(...ORDEN.map((k, i) => {
+    const c = CLASES[k];
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "carta";
+    b.dataset.clase = k;
+    b.innerHTML = `<span class="num">0${i + 1}</span><b></b><small></small>`;
+    b.querySelector("b").textContent = c.nombre.toUpperCase();
+    b.querySelector("small").textContent = c.rol;
+    b.classList.toggle("activa", k === claseVista);
+    b.classList.toggle("elegida", k === (ajustes.clase ?? CLASE_DEFECTO));
+    b.addEventListener("click", () => { claseVista = k; audio.ui("sel"); pintarHangar(); });
+    return b;
+  }));
+  const c = CLASES[claseVista];
+  $("ficha-nombre").textContent = c.nombre.toUpperCase();
+  $("ficha-rol").textContent = c.rol;
+  $("ficha-vida").textContent = `${c.vida} PV · VELOCIDAD ${c.velocidad}`;
+  $("ficha-atributos").replaceChildren(...Object.entries(ATRIBUTOS).map(([k, nombre]) => {
+    const fila = document.createElement("div");
+    fila.className = "attr";
+    fila.innerHTML = `<span></span><i><b></b></i><em></em>`;
+    fila.querySelector("span").textContent = nombre;
+    fila.querySelector("b").style.width = `${c.atributos[k]}%`;
+    fila.querySelector("em").textContent = c.atributos[k];
+    return fila;
+  }));
+  const a = c.arma;
+  $("ficha-arma").textContent = `${a.nombre} — ${a.dano} de daño, ${(1 / a.cadencia).toFixed(1)} disparos/s, alcance ${a.alcance}` +
+    (a.tipo === "railgun" ? ". Atraviesa naves, no paredes." : a.tipo === "instantaneo" ? ". Impacto instantáneo." : ". Proyectil.");
+  $("ficha-habilidades").replaceChildren(...[["Q", c.q], ["E", c.e], ["ESPACIO", c.s]].map(([t, h]) => {
+    const li = document.createElement("li");
+    li.innerHTML = `<kbd></kbd><div><b></b><small></small></div><em></em>`;
+    li.querySelector("kbd").textContent = t;
+    li.querySelector("b").textContent = h.nombre ?? "Propulsión";
+    li.querySelector("small").textContent = h.desc ?? "";
+    li.querySelector("em").textContent = `${h.cd} s`;
+    return li;
+  }));
+  for (const b of document.querySelectorAll("#color-hangar button")) b.classList.toggle("activa", b.dataset.equipo === colorHangar);
+  const elegida = claseVista === (ajustes.clase ?? CLASE_DEFECTO);
+  $("btn-elegir").textContent = elegida ? "NAVE SELECCIONADA ✓" : "SELECCIONAR NAVE";
+  $("btn-elegir").disabled = elegida;
+  hangar.mostrarClase(claseVista, colorHangar);
+}
+for (const b of document.querySelectorAll("#color-hangar button")) {
+  b.addEventListener("click", () => { colorHangar = b.dataset.equipo; guardar({ colorHangar }); pintarHangar(); });
+}
+$("btn-elegir").addEventListener("click", () => {
+  guardar({ clase: claseVista });
+  pintarHangar();
+  pintarMenuClase();
+});
+$("btn-volver-hangar").addEventListener("click", () => {
+  claseVista = ajustes.clase ?? CLASE_DEFECTO;
+  hangar.mostrarClase(claseVista, colorHangar);
+  mostrar("menu");
+});
+// Teclado en el hangar: flechas para cambiar de nave, Enter para equiparla, Esc para volver
+addEventListener("keydown", (ev) => {
+  if (!$("hangar").classList.contains("visible") || ev.target instanceof HTMLInputElement) return;
+  const paso = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[ev.code];
+  if (paso) {
+    ev.preventDefault();
+    claseVista = ORDEN[(ORDEN.indexOf(claseVista) + paso + ORDEN.length) % ORDEN.length];
+    audio.ui("sel");
+    pintarHangar();
+  } else if (ev.code === "Enter" || ev.code === "NumpadEnter") {
+    ev.preventDefault();
+    if (!$("btn-elegir").disabled) $("btn-elegir").click();
+  } else if (ev.code === "Escape") {
+    $("btn-volver-hangar").click();
+  }
+});
+
+// ---------------------------------------------------------------- ajustes
+function abrirAjustes(desde) {
+  anterior = desde;
+  for (const k of ["volGeneral", "volEfectos", "volMusica"]) $(k).value = Math.round(ajustes[k] * 100);
+  for (const b of document.querySelectorAll("#calidad button")) b.classList.toggle("activa", b.dataset.calidad === ajustes.calidad);
+  $("mostrarFps").checked = ajustes.mostrarFps;
+  if (desde === "partida") $("ajustes").classList.add("visible");
+  else mostrar("ajustes");
+}
+for (const k of ["volGeneral", "volEfectos", "volMusica"]) {
+  $(k).addEventListener("input", () => guardar({ [k]: $(k).value / 100 }));
+}
+$("mostrarFps").addEventListener("change", () => guardar({ mostrarFps: $("mostrarFps").checked }));
+for (const b of document.querySelectorAll("#calidad button")) {
+  b.addEventListener("click", () => {
+    guardar({ calidad: b.dataset.calidad });
+    motor.aplicarCalidad(b.dataset.calidad);
+    for (const o of document.querySelectorAll("#calidad button")) o.classList.toggle("activa", o === b);
+  });
+}
+
+// ---------------------------------------------------------------- estadísticas locales
+function pintarEstadisticas() {
+  const s = leerEstadisticas();
+  const kd = s.muertes ? (s.bajas / s.muertes).toFixed(2) : s.bajas.toFixed(2);
+  const datos = [["PARTIDAS", s.partidas], ["VICTORIAS", s.victorias], ["DERROTAS", s.derrotas], ["EMPATES", s.empates],
+    ["BAJAS", s.bajas], ["MUERTES", s.muertes], ["ASISTENCIAS", s.asist], ["K/D", kd],
+    ["MEJOR PARTIDA", `${s.mejorBajas} bajas`], ["TIEMPO", `${Math.round(s.segundos / 60)} min`]];
+  $("est-resumen").replaceChildren(...datos.map(([n, v]) => {
+    const d = document.createElement("div");
+    d.innerHTML = "<small></small><b></b>";
+    d.querySelector("small").textContent = n;
+    d.querySelector("b").textContent = v;
+    return d;
+  }));
+  $("est-clases").replaceChildren(...ORDEN.map((k) => {
+    const c = s.porClase[k] ?? { partidas: 0, victorias: 0, bajas: 0, muertes: 0, asist: 0 };
+    const tr = document.createElement("tr");
+    for (const v of [CLASES[k].nombre, c.partidas, c.victorias, c.bajas, c.muertes, c.asist]) {
+      const td = document.createElement("td"); td.textContent = v; tr.append(td);
+    }
+    return tr;
+  }));
+}
+$("btn-borrar-est").addEventListener("click", () => {
+  if (confirm("¿Borrar las estadísticas guardadas en este navegador?")) { borrarEstadisticas(); pintarEstadisticas(); }
+});
+
+// ---------------------------------------------------------------- clasificación global (solo lectura)
 async function verClasificacion() {
   mostrar("clasificacion");
   const tb = $("tabla-clasificacion");
@@ -69,323 +211,102 @@ async function verClasificacion() {
   try {
     const r = await fetch(`${LEADERBOARD.replace(/\/$/, "")}/top`);
     const filas = await r.json();
-    tb.replaceChildren(...filas.map((f) => fila([f.posicion, f.jugador, f.puntos, f.partidas, f.victorias, f.derrotas])));
+    tb.replaceChildren(...filas.map((f) => {
+      const tr = document.createElement("tr");
+      for (const v of [f.posicion, f.jugador, f.puntos, f.partidas, f.victorias, f.derrotas]) {
+        const td = document.createElement("td"); td.textContent = v; tr.append(td);
+      }
+      return tr;
+    }));
     if (!filas.length) tb.innerHTML = `<tr><td colspan="6">Aún no hay puntajes.</td></tr>`;
   } catch (e) {
     tb.innerHTML = `<tr><td colspan="6">No se pudo cargar la clasificación (${e.message}).</td></tr>`;
   }
 }
 
-function fila(celdas, clase = "") {
-  const tr = document.createElement("tr");
-  if (clase) tr.className = clase;
-  for (const c of celdas) {
-    const td = document.createElement("td");
-    td.textContent = c;
-    tr.append(td);
+// ---------------------------------------------------------------- estado del servidor (se asoma como espectador)
+let sondeo = null;
+function comprobarServidor() {
+  const chip = $("estado-servidor");
+  if (sesion || !$("menu").classList.contains("visible")) return;
+  if (sondeo) sondeo.close();
+  const base = ($("servidor").value.trim() || SERVIDOR_DEF).replace(/\/$/, "");
+  let ws;
+  try { ws = new WebSocket(`${base}/espectador`); } catch {
+    chip.className = "chip mal"; chip.textContent = "URL INVÁLIDA"; return;
   }
-  return tr;
+  sondeo = ws;
+  const fin = (clase, txt) => { if (sondeo !== ws) return; chip.className = `chip ${clase}`; chip.textContent = txt; ws.close(); sondeo = null; };
+  const espera = setTimeout(() => fin("mal", "SIN RESPUESTA"), 3000);
+  ws.onmessage = (m) => {
+    const d = JSON.parse(m.data);
+    if (!d.e) return;
+    clearTimeout(espera);
+    const pilotos = Object.values(d.e).filter((j) => !j.bot).length;
+    fin("ok", pilotos ? `EN LÍNEA · ${pilotos} ${pilotos === 1 ? "PILOTO" : "PILOTOS"}` : "EN LÍNEA · ARENA LIBRE");
+  };
+  ws.onerror = () => { clearTimeout(espera); fin("mal", "SERVIDOR APAGADO"); };
 }
+comprobarServidor();
+setInterval(comprobarServidor, 5000);
+$("servidor").addEventListener("change", comprobarServidor);
 
-// ---------------------------------------------------------------- red
-function conectar(modo) {
+// ---------------------------------------------------------------- partida
+function jugar(modo) {
   const nombre = $("nombre").value.trim().slice(0, 16);
-  if (modo === "jugar" && !nombre) { aviso("Escribe tu nombre de piloto.", true); return; }
+  if (modo === "jugar" && !nombre) { aviso("Escribe tu callsign de piloto.", true); $("nombre").focus(); return; }
   localStorage.setItem("nebula-nombre", nombre);
   const base = ($("servidor").value.trim() || SERVIDOR_DEF).replace(/\/$/, "");
   const url = modo === "espectar" ? `${base}/espectador` : base;
-
   for (const b of document.querySelectorAll("#form-inicio button")) b.disabled = true;
   aviso(`Conectando a ${url}…`);
-  Object.assign(st, { modo, nombre, id: null, snaps: [], ultimo: null, finMostrado: false, vivo: true });
-
-  let ws;
-  try { ws = new WebSocket(url); } catch (e) { return fallo(`URL inválida: ${e.message}`); }
-  st.ws = ws;
-  let abierto = false;
-
-  ws.onopen = () => {
-    abierto = true;
-    if (modo === "jugar") {
-      const id = `p-${Math.random().toString(36).slice(2, 10)}`;
-      st.id = id;
-      // (0, 0) está fuera del área válida: el servidor nos coloca en la base del equipo.
-      ws.send(JSON.stringify({ id, x: 0, y: 0, nombre }));
+  sesion = new Sesion({
+    motor, hud, url, modo, nombre, clase: ajustes.clase ?? CLASE_DEFECTO,
+    alCerrar: (mensaje, error) => volverAlMenu(mensaje, error),
+  });
+  // la escena del juego se activa cuando llega la bienvenida
+  const espera = setInterval(() => {
+    if (!sesion || sesion.cerrada) { clearInterval(espera); return; }
+    if (sesion.escena) {
+      clearInterval(espera);
+      for (const p of PANTALLAS) $(p).classList.remove("visible");
+      document.body.dataset.pantalla = "partida";
+      aviso("");
     }
-  };
-  ws.onmessage = (m) => recibir(JSON.parse(m.data));
-  ws.onerror = () => {};
-  ws.onclose = (ev) => {
-    if (st.ws !== ws) return;
-    st.ws = null;
-    if (!abierto) return fallo(`No hay servidor en ${url}. ¿Está corriendo server.py?`);
-    if (ev.code === 4000) return fallo("La partida está llena (10 jugadores). Prueba el modo espectador.");
-    salir();
-    aviso(ev.code === 1000 || ev.code === 1001 ? "Partida terminada." : `Conexión cerrada (código ${ev.code}).`, ev.code !== 1000);
-  };
+  }, 30);
 }
 
-function fallo(txt) {
-  salir();
-  aviso(txt, true);
-}
-
-function salir() {
-  const ws = st.ws;
-  st.ws = null;
-  if (ws && ws.readyState <= 1) ws.close(1000);
-  st.modo = null;
-  document.body.classList.remove("jugando");
-  $("hud").classList.add("oculto");
-  $("feed").replaceChildren();
-  escena.desactivarOrbita();
-  escena.limpiarNaves(new Set());
+function volverAlMenu(mensaje = "", error = false) {
+  if (sesion && !sesion.cerrada) sesion.salir();
+  sesion = null;
+  hud.mostrar(false);
+  hud.ocultarResultados();
+  $("ajustes").classList.remove("visible");
+  motor.usar(hangar.escena, hangar.camara);
   for (const b of document.querySelectorAll("#form-inicio button")) b.disabled = false;
-  aviso("");
-  mostrar("inicio");
+  mostrar("menu");
+  aviso(mensaje, error);
+  comprobarServidor();
 }
 
-function enviar(obj) {
-  if (st.ws && st.ws.readyState === 1) st.ws.send(JSON.stringify(obj));
-}
+$("btn-continuar").addEventListener("click", () => sesion?.alternarPausa(false));
+$("btn-ajustes-pausa").addEventListener("click", () => abrirAjustes("partida"));
+$("btn-salir-pausa").addEventListener("click", () => volverAlMenu());
+$("btn-salir-res").addEventListener("click", () => volverAlMenu());
+$("btn-seguir-res").addEventListener("click", () => hud.ocultarResultados());
 
-function recibir(d) {
-  if (d.bienvenida) return bienvenida(d.bienvenida);
-  if (d.pong !== undefined) { st.ping = performance.now() - d.pong; return; }
-  if (d.correccion) {                     // el servidor rechazó el movimiento
-    st.x = d.correccion.x; st.y = d.correccion.y;
-    return;
-  }
-  if (d.e) snapshot(d);
-}
-
-function bienvenida(b) {
-  mapa = b.mapa;
-  escena.construirMapa(mapa);
-  $("meta").textContent = `Primero a ${mapa.meta_bajas} bajas`;
-  mostrar(null);
-  $("hud").classList.remove("oculto");
-  if (st.modo === "espectar") {
-    escena.activarOrbita();
-    $("vida-caja").classList.add("oculto");
-    $("mira").classList.add("oculto");
-    $("modo").textContent = "ESPECTADOR · arrastra para girar la cámara";
-  } else {
-    Object.assign(st, { id: b.id, equipo: b.equipo, x: b.x, y: b.y });
-    document.body.classList.add("jugando");
-    $("vida-caja").classList.remove("oculto");
-    $("mira").classList.remove("oculto");
-    $("modo").textContent = `Equipo ${b.equipo.toUpperCase()}`;
-    $("modo").style.color = b.equipo === "azul" ? "var(--azul)" : "var(--rojo)";
-  }
-}
-
-function snapshot(d) {
-  const ahora = performance.now();
-  st.snaps.push({ t: ahora, e: d.e });
-  while (st.snaps.length > 30) st.snaps.shift();
-  st.ultimo = d;
-
-  // marcador y reloj
-  $("pts-azul").textContent = d.m?.azul ?? 0;
-  $("pts-rojo").textContent = d.m?.rojo ?? 0;
-  const r = Math.ceil(d.r ?? 0);
-  $("reloj").textContent = `${Math.floor(r / 60)}:${String(r % 60).padStart(2, "0")}`;
-
-  for (const ev of d.ev || []) evento(ev, d.e);
-
-  // estado propio según el servidor
-  const yo = st.id && d.e[st.id];
-  if (yo) {
-    const vivo = yo.vida > 0;
-    if (vivo && !st.vivo) { st.x = yo.x; st.y = yo.y; }             // reaparición
-    else if (vivo && Math.hypot(yo.x - st.x, yo.y - st.y) > 4) {    // desfase grande
-      st.x = yo.x; st.y = yo.y;
-    }
-    st.vivo = vivo;
-    $("vida-num").textContent = yo.vida;
-    $("vida-relleno").style.width = `${yo.vida}%`;
-    $("vida-relleno").classList.toggle("baja-vida", yo.vida <= 35);
-    $("muerto").classList.toggle("oculto", vivo);
-  }
-
-  // fin de partida
-  if (d.fin && !st.finMostrado) { st.finMostrado = true; resultados(d.fin); }
-  if (!d.fin && st.finMostrado) { st.finMostrado = false; mostrar(null); }
-
-  if (!$("tabla-marcador").classList.contains("oculto")) marcador();
-}
-
-function evento(ev, e) {
-  if (ev.tipo === "disparo") {
-    escena.trazador(ev, e[ev.de]?.equipo);
-  } else if (ev.tipo === "baja") {
-    const v = e[ev.a];
-    if (v) escena.explosion(v.x, v.y, v.equipo);
-    agregarBaja(ev, e);
-    if (ev.a === st.id) {
-      st.muertoHasta = performance.now() + RESPAWN_S * 1000;
-      $("muerto-por").textContent = `por ${ev.de_nombre}`;
-    }
-  }
-}
-
-function agregarBaja(ev, e) {
-  const div = document.createElement("div");
-  div.className = "baja";
-  const a = document.createElement("span"), b = document.createElement("span"), arma = document.createElement("span");
-  a.className = e[ev.de]?.equipo || ""; a.textContent = ev.de_nombre;
-  b.className = e[ev.a]?.equipo || ""; b.textContent = ev.a_nombre;
-  arma.className = "arma"; arma.textContent = "⟶";
-  div.append(a, arma, b);
-  $("feed").prepend(div);
-  while ($("feed").children.length > 5) $("feed").lastChild.remove();
-  setTimeout(() => div.remove(), 6000);
-}
-
-function marcador() {
-  const e = st.ultimo?.e || {};
-  for (const eq of ["azul", "rojo"]) {
-    const t = $(`tm-${eq}`);
-    const cab = document.createElement("tr");
-    for (const h of [eq.toUpperCase(), "Bajas", "Muertes"]) {
-      const th = document.createElement("th"); th.textContent = h; cab.append(th);
-    }
-    const filas = Object.values(e).filter((j) => j.equipo === eq)
-      .sort((a, b) => b.bajas - a.bajas || a.muertes - b.muertes)
-      .map((j) => {
-        const tr = fila([j.nombre, j.bajas, j.muertes], j.id === st.id ? "yo" : "");
-        if (j.bot) tr.firstChild.className = "bot";
-        return tr;
-      });
-    t.replaceChildren(cab, ...filas);
-  }
-}
-
-function resultados(fin) {
-  const mio = st.equipo;
-  $("res-titulo").textContent = fin.ganador === "empate" ? "Empate"
-    : !mio ? `Gana el equipo ${fin.ganador}` : fin.ganador === mio ? "Victoria" : "Derrota";
-  $("res-titulo").style.color = fin.ganador === "azul" ? "var(--azul)" : fin.ganador === "rojo" ? "var(--rojo)" : "";
-  $("res-marcador").textContent = `AZUL ${fin.marcador.azul} — ${fin.marcador.rojo} ROJO`;
-  $("res-tabla").replaceChildren(...fin.jugadores.map((j) =>
-    fila([j.nombre, j.equipo, j.bajas, j.muertes], j.nombre === st.nombre && !j.bot ? "yo" : "")));
-  mostrar("resultados");
-}
-
-// ---------------------------------------------------------------- entrada
-addEventListener("keydown", (ev) => {
-  if (!st.modo) return;
-  if (ev.code === "Tab") { ev.preventDefault(); marcador(); $("tabla-marcador").classList.remove("oculto"); }
-  else if (ev.code === "Escape") salir();
-  else st.teclas.add(ev.code);
-});
-addEventListener("keyup", (ev) => {
-  if (ev.code === "Tab") $("tabla-marcador").classList.add("oculto");
-  st.teclas.delete(ev.code);
-});
-addEventListener("blur", () => { st.teclas.clear(); st.disparando = false; });
-addEventListener("mousemove", (ev) => {
-  st.mouse.x = ev.clientX; st.mouse.y = ev.clientY;
-  st.mouse.nx = (ev.clientX / innerWidth) * 2 - 1;
-  st.mouse.ny = -(ev.clientY / innerHeight) * 2 + 1;
-});
-$("lienzo").addEventListener("mousedown", (ev) => { if (ev.button === 0) st.disparando = true; });
-addEventListener("mouseup", (ev) => { if (ev.button === 0) st.disparando = false; });
-$("lienzo").addEventListener("contextmenu", (ev) => ev.preventDefault());
-
-setInterval(() => { if (st.modo) enviar({ ping: performance.now() }); }, 1000);
-
-// ---------------------------------------------------------------- simulación local
-function moverLocal(dt) {
-  if (!st.vivo || st.finMostrado || !mapa) return;
-  let dx = 0, dy = 0;
-  const t = st.teclas;
-  if (t.has("KeyW") || t.has("ArrowUp")) dy -= 1;
-  if (t.has("KeyS") || t.has("ArrowDown")) dy += 1;
-  if (t.has("KeyA") || t.has("ArrowLeft")) dx -= 1;
-  if (t.has("KeyD") || t.has("ArrowRight")) dx += 1;
-  const n = Math.hypot(dx, dy);
-  if (n > 0) {
-    const paso = (VELOCIDAD * dt) / n;
-    // por ejes, para deslizarse a lo largo de las paredes
-    if (!choca(st.x + dx * paso, st.y)) st.x += dx * paso;
-    if (!choca(st.x, st.y + dy * paso)) st.y += dy * paso;
-  }
-  const p = escena.puntoDelMouse(st.mouse.nx, st.mouse.ny);
-  if (p) { st.dir = Math.atan2(p.y - st.y, p.x - st.x); st.apunta = p; }
-}
-
-function enviarEstado(ahora) {
-  if (st.modo !== "jugar" || !st.id || !mapa) return;
-  if (ahora - st.ultimoEnvio < 1000 / ENVIO_HZ) return;
-  st.ultimoEnvio = ahora;
-  if (!st.vivo || st.finMostrado) return;          // muerto o entre partidas: no se manda nada
-  let dispara = false;
-  if (st.disparando && ahora - st.ultimoDisparo >= CADENCIA_S * 1000) {
-    dispara = true;
-    st.ultimoDisparo = ahora;
-  }
-  enviar({ id: st.id, x: +st.x.toFixed(3), y: +st.y.toFixed(3), dir: +st.dir.toFixed(4), dispara });
-}
-
-// ---------------------------------------------------------------- interpolación de entidades remotas
-function anguloLerp(a, b, k) {
-  let d = ((b - a + Math.PI) % (2 * Math.PI)) - Math.PI;
-  if (d < -Math.PI) d += 2 * Math.PI;
-  return a + d * k;
-}
-
-function dibujarEntidades(ahora) {
-  const s = st.snaps;
-  if (!s.length) return;
-  const objetivo = ahora - RETRASO_INTERP_MS;
-  let a = s[0], b = s[s.length - 1];
-  for (let i = s.length - 1; i > 0; i--) {
-    if (s[i - 1].t <= objetivo) { a = s[i - 1]; b = s[i]; break; }
-  }
-  const k = b.t > a.t ? Math.min(Math.max((objetivo - a.t) / (b.t - a.t), 0), 1) : 1;
-  const vivos = new Set(Object.keys(b.e));
-  for (const [id, jb] of Object.entries(b.e)) {
-    if (id === st.id) {
-      escena.actualizarNave(id, jb, st.x, st.y, st.dir, true);
-      continue;
-    }
-    const ja = a.e[id] || jb;
-    const salto = Math.hypot(jb.x - ja.x, jb.y - ja.y) > 5;          // reaparición: sin deslizar
-    const x = salto ? jb.x : ja.x + (jb.x - ja.x) * k;
-    const y = salto ? jb.y : ja.y + (jb.y - ja.y) * k;
-    escena.actualizarNave(id, jb, x, y, anguloLerp(ja.dir ?? 0, jb.dir ?? 0, k), false);
-  }
-  escena.limpiarNaves(vivos);
-}
-
-// ---------------------------------------------------------------- bucle de dibujo
-let anguloMenu = 0;
-function cuadro() {
-  const ahora = performance.now();
-  const dt = escena.dtPrevio ?? 0.016;
-  if (st.modo === "jugar") {
-    moverLocal(dt);
-    enviarEstado(ahora);
-    escena.seguir(st.x, st.y, dt, st.apunta?.x, st.apunta?.y);
-    const m = $("mira");
-    m.style.left = `${st.mouse.x}px`; m.style.top = `${st.mouse.y}px`;
-    if (!st.vivo) {
-      const falta = Math.max(0, (st.muertoHasta - ahora) / 1000);
-      $("respawn").textContent = `Reapareces en ${falta.toFixed(1)} s`;
-    }
-  } else if (!st.modo) {                              // menú: cámara orbitando
-    anguloMenu += dt * 0.08;
-    escena.camara.position.set(Math.cos(anguloMenu) * 85, 55, Math.sin(anguloMenu) * 85);
-    escena.camara.lookAt(0, 0, 0);
-  }
-  dibujarEntidades(ahora);
-  $("ping").textContent = st.ping == null ? "— ms" : `${Math.round(st.ping)} ms`;
-  escena.dtPrevio = escena.dibujar();
+// ---------------------------------------------------------------- bucle
+let previo = performance.now(), fps = 60, acumulado = 0, cuadros = 0;
+function cuadro(ahora) {
+  const dt = Math.min(0.05, (ahora - previo) / 1000);
+  previo = ahora;
+  acumulado += dt; cuadros += 1;
+  if (acumulado >= 0.5) { fps = cuadros / acumulado; acumulado = 0; cuadros = 0; }
+  if (sesion?.escena) {
+    sesion.fps = fps;
+    sesion.cuadro(dt, ahora);
+  } else hangar.actualizar(dt);
+  motor.dibujar();
   requestAnimationFrame(cuadro);
 }
-
-// Arena de fondo en el menú (misma geometría que el servidor, se reemplaza al conectar).
-escena.construirMapa(MAPA_MENU);
 requestAnimationFrame(cuadro);
