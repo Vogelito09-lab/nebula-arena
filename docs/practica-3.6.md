@@ -81,6 +81,13 @@ Los pasos completos, incluida la creación del bucket del estado, están en [`in
 | `01-plan-sin-drift.txt` | `plan` completo contra la infraestructura viva: sin drift, solo el presupuesto nuevo |
 | `02-idempotencia.txt` | segundo `plan`: `No changes` |
 | `03-cluster-funcionando.txt` | EKS `ACTIVE`, nodos, Agones, autoescalador, monitoreo, flota, HPA y matchmaker |
-| `04-destroy.txt` | **Pendiente:** `terraform destroy` y comprobación de que no quedan recursos con la etiqueta `proyecto=nebula-arena` |
+| `04-destroy.txt` | `terraform destroy` de los 46 recursos y comprobación de que no quedó nada del proyecto cobrando |
 
-**Pendiente:** el pull request con la salida de `plan`.
+## Destroy sin recursos huérfanos
+
+1. **Antes del destroy** se borraron el balanceador del matchmaker y la flota. Los crea Kubernetes, no Terraform; sin este paso, el balanceador habría quedado huérfano y habría bloqueado el borrado de la red.
+2. `terraform plan -destroy -out destroy.tfplan` → **46 to destroy**, y `apply` de ese plan.
+3. **Dos fallas reales encontradas y corregidas:**
+   - **Orden de borrado:** Terraform borró la ruta a internet antes que Agones. El desinstalador de Agones (un *hook* de Helm) ya no pudo descargar su imagen y el destroy se atoró. Se quitó el job atorado y se corrigió `cluster.tf`: el grupo de nodos ahora depende de la ruta, así que la ruta se borra al final.
+   - **Usuario de GitHub:** `force_destroy` intenta `iam:DeleteLoginProfile`, y la política de la organización del plan gratuito lo niega. Se quitó `force_destroy`. Su llave, creada fuera de Terraform, se borra con la CLI antes del destroy (ver `github.tf`).
+4. **Resultado:** 46 de 46 recursos destruidos y `terraform state list` vacío. La comprobación en AWS no encontró clústeres, balanceadores, IPs, VPC, ECR, Lambda, DynamoDB, API Gateway ni usuarios o roles del proyecto. Solo quedan, a propósito y con costo prácticamente cero, el bucket del estado y la llave en SSM.

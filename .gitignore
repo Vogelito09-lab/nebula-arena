@@ -19,3 +19,6 @@ key.json
 
 # correo de alertas y otros valores locales de Terraform
 infra-aws/*.auto.tfvars
+
+# paquete de entrega (se genera desde entrega/)
+Nebula-Arena-entrega.zip

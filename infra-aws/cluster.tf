@@ -88,7 +88,10 @@ resource "aws_eks_node_group" "juego" {
     ignore_changes = [scaling_config[0].desired_size]
   }
 
-  depends_on = [aws_iam_role_policy_attachment.nodos]
+  # La ruta a internet debe existir mientras haya nodos: al destruir, Terraform
+  # la borraba primero y el desinstalador de Agones (Helm) no podía descargar su
+  # imagen, así que el destroy se atoraba. Con esta dependencia se borra al final.
+  depends_on = [aws_iam_role_policy_attachment.nodos, aws_route_table_association.publica]
 }
 
 # Agente de "Pod Identity": da permisos de AWS a pods concretos (el autoscaler).

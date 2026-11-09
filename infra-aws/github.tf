@@ -8,6 +8,10 @@
 # únicamente como secretos AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY en GitHub.
 resource "aws_iam_user" "github" {
   name = "nebula-github"
+  # Sin force_destroy: en el plan gratuito, force_destroy intenta
+  # iam:DeleteLoginProfile y la política de la organización lo niega.
+  # Su llave se crea fuera de Terraform, así que antes de destroy se borra a mano:
+  #   aws iam delete-access-key --user-name nebula-github --access-key-id <id>
 }
 
 # Mínimo privilegio: subir imágenes a SUS dos repositorios y ver el clúster.

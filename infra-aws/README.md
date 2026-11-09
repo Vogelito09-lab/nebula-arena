@@ -31,14 +31,17 @@ terraform fmt -check; terraform validate
 terraform plan -out plan.tfplan     # se revisa en el pull request
 terraform apply plan.tfplan         # aplica exactamente lo revisado
 powershell -ExecutionPolicy Bypass -File .\desplegar-juego.ps1 -Etiqueta <sha>
-terraform destroy                   # al terminar la sesión, para no gastar crédito
+# al terminar la sesión, para no gastar crédito:
+kubectl delete fleet --all; kubectl delete svc matchmaker      # el balanceador lo crea Kubernetes
+aws iam list-access-keys --user-name nebula-github             # borrar su llave con delete-access-key
+terraform plan -destroy -out destroy.tfplan; terraform apply destroy.tfplan
 ```
 
 `crear-llave.ps1` crea la llave fuera de Terraform a propósito. Así su valor nunca queda en el código ni en el archivo de estado. La Lambda solo conoce el **nombre** del parámetro, y su rol solo puede leer ese parámetro.
 
 ## Seguridad y costo
 - **Mínimo privilegio:** el rol de la Lambda solo puede escribir sus logs, hacer `UpdateItem`, `GetItem` y `Scan` en `nebula-scores`, y leer `/nebula/score-api-key`.
-- **Límite de peticiones en API Gateway:** 100 por segundo, con ráfagas de hasta 200. Así un abuso no se come el crédito.
+- **Límite de peticiones en API Gateway:** 1000 por segundo, con ráfagas de hasta 2000 (se subió desde 100 después de la prueba de carga de la 3.5). Así un abuso no se come el crédito.
 - **Cobro por uso:** DynamoDB está en `PAY_PER_REQUEST` y Lambda cobra por invocación. Sin tráfico, el costo es prácticamente cero.
 - **Logs:** se guardan 7 días.
 - **Etiquetas:** todo lleva `proyecto = nebula-arena` para separar sus costos en Cost Explorer.
