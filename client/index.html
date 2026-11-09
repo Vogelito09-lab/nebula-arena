@@ -4,75 +4,207 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Nebula Arena</title>
-  <link rel="stylesheet" href="/src/estilos.css" />
 </head>
-<body>
+<body data-pantalla="menu">
   <canvas id="lienzo"></canvas>
+  <div id="vineta-menu"></div>
 
-  <!-- Pantalla de inicio -->
-  <section id="inicio" class="pantalla visible">
-    <div class="marca">
-      <div class="logo">NEBULA<span>ARENA</span></div>
-      <p class="lema">Combate de arena 5 vs 5 · servidor autoritativo · bots de IA</p>
-    </div>
-    <form id="form-inicio" class="panel" autocomplete="off">
-      <label>Nombre de piloto
-        <input id="nombre" maxlength="16" required placeholder="Tu nombre" />
-      </label>
-      <label>Servidor de partida
-        <input id="servidor" placeholder="ws://localhost:7654" />
-      </label>
-      <div class="botones">
-        <button type="submit" class="primario" id="btn-jugar">Jugar</button>
-        <button type="button" id="btn-espectar">Modo espectador</button>
-        <button type="button" id="btn-clasificacion" hidden>Clasificación</button>
+  <!-- ============================================================ MENÚ PRINCIPAL -->
+  <section id="menu" class="pantalla visible">
+    <div class="menu-col">
+      <div class="logo">
+        <span class="logo-sup"><i></i>ORBITAL STATION · 5 VS 5</span>
+        <h1>NEBULA<b>ARENA</b></h1>
       </div>
-      <p id="estado-conexion" class="aviso"></p>
-    </form>
-    <div class="controles">
-      <span><b>WASD</b> moverse</span><span><b>Mouse</b> apuntar</span>
-      <span><b>Clic</b> disparar</span><span><b>Tab</b> marcador</span><span><b>Esc</b> salir</span>
+      <form id="form-inicio" autocomplete="off">
+        <label class="campo"><span>CALLSIGN</span>
+          <input id="nombre" maxlength="16" placeholder="Nombre de piloto" spellcheck="false" /></label>
+        <nav class="menu-botones">
+          <button id="btn-jugar" class="btn-principal" type="submit"><span>JUGAR</span><small>PARTIDA 5 VS 5</small></button>
+          <button id="btn-hangar" type="button"><span>HANGAR</span><small>NAVES Y CLASES</small></button>
+          <button id="btn-ajustes" type="button"><span>AJUSTES</span><small>AUDIO Y GRÁFICOS</small></button>
+          <div class="menu-sec">
+            <button id="btn-estadisticas" type="button">ESTADÍSTICAS</button>
+            <button id="btn-espectar" type="button">ESPECTADOR</button>
+            <button id="btn-clasificacion" type="button" hidden>CLASIFICACIÓN</button>
+          </div>
+        </nav>
+        <div class="servidor-fila">
+          <label class="campo mini"><span>SERVIDOR</span><input id="servidor" spellcheck="false" /></label>
+          <span id="estado-servidor" class="chip">COMPROBANDO…</span>
+        </div>
+        <p id="estado-conexion" class="aviso"></p>
+      </form>
+    </div>
+    <div class="menu-nave">
+      <small>NAVE ACTUAL</small>
+      <b id="menu-clase-nombre"></b>
+      <span id="menu-clase-rol"></span>
+    </div>
+    <footer class="controles">
+      <span><kbd>WASD</kbd> mover</span><span><kbd>MOUSE</kbd> apuntar</span><span><kbd>CLIC</kbd> disparar</span>
+      <span><kbd>Q</kbd><kbd>E</kbd> habilidades</span><span><kbd>ESPACIO</kbd> propulsión</span>
+      <span><kbd>TAB</kbd> marcador</span><span><kbd>ESC</kbd> menú</span>
+    </footer>
+  </section>
+
+  <!-- ============================================================ HANGAR -->
+  <section id="hangar" class="pantalla">
+    <header class="barra-pantalla">
+      <button id="btn-volver-hangar" type="button" class="btn-volver">← VOLVER</button>
+      <h2>HANGAR</h2>
+      <span class="pista">← → CAMBIAR NAVE · ENTER EQUIPAR · ARRASTRA PARA GIRAR</span>
+    </header>
+    <div id="lista-clases"></div>
+    <aside id="ficha-clase" class="panel">
+      <small id="ficha-rol"></small>
+      <h3 id="ficha-nombre"></h3>
+      <p id="ficha-vida" class="tenue"></p>
+      <div id="ficha-atributos"></div>
+      <h4>ARMA</h4>
+      <p id="ficha-arma"></p>
+      <h4>HABILIDADES</h4>
+      <ul id="ficha-habilidades"></ul>
+      <div id="color-hangar">
+        <span>VISTA</span>
+        <button type="button" data-equipo="azul">BLUE SQUAD</button>
+        <button type="button" data-equipo="rojo">RED SQUAD</button>
+      </div>
+      <button id="btn-elegir" type="button" class="btn-principal">SELECCIONAR NAVE</button>
+    </aside>
+  </section>
+
+  <!-- ============================================================ AJUSTES -->
+  <section id="ajustes" class="pantalla modal">
+    <div class="panel">
+      <h2>AJUSTES</h2>
+      <h4>AUDIO</h4>
+      <label class="rango"><span>VOLUMEN GENERAL</span><input id="volGeneral" type="range" min="0" max="100" /></label>
+      <label class="rango"><span>EFECTOS</span><input id="volEfectos" type="range" min="0" max="100" /></label>
+      <label class="rango"><span>MÚSICA</span><input id="volMusica" type="range" min="0" max="100" /></label>
+      <h4>GRÁFICOS</h4>
+      <div id="calidad" class="selector">
+        <button type="button" data-calidad="bajo">BAJO<small>sin sombras ni bloom · 75 % resolución</small></button>
+        <button type="button" data-calidad="alto">ALTO<small>sombras, bloom y partículas completas</small></button>
+      </div>
+      <label class="check"><input id="mostrarFps" type="checkbox" /> MOSTRAR FPS</label>
+      <button type="button" data-volver class="btn-volver">LISTO</button>
     </div>
   </section>
 
-  <!-- Clasificación (solo si hay tabla de líderes configurada, práctica 3.5) -->
-  <section id="clasificacion" class="pantalla">
+  <!-- ============================================================ ESTADÍSTICAS -->
+  <section id="estadisticas" class="pantalla modal">
     <div class="panel ancho">
-      <h2>Clasificación global</h2>
-      <table><thead><tr><th>#</th><th>Piloto</th><th>Puntos</th><th>Partidas</th><th>Victorias</th><th>Derrotas</th></tr></thead>
-        <tbody id="tabla-clasificacion"></tbody></table>
-      <button id="btn-cerrar-clasificacion">Volver</button>
+      <h2>ESTADÍSTICAS DEL PILOTO</h2>
+      <p class="tenue">Guardadas solo en este navegador. La clasificación global la publica el servidor.</p>
+      <div id="est-resumen"></div>
+      <table class="tabla">
+        <thead><tr><th>CLASE</th><th>PARTIDAS</th><th>VICTORIAS</th><th>BAJAS</th><th>MUERTES</th><th>ASIST.</th></tr></thead>
+        <tbody id="est-clases"></tbody>
+      </table>
+      <div class="fila-botones">
+        <button type="button" id="btn-borrar-est" class="btn-peligro">BORRAR</button>
+        <button type="button" data-volver class="btn-volver">VOLVER</button>
+      </div>
     </div>
   </section>
 
-  <!-- HUD de combate -->
-  <section id="hud" class="oculto">
-    <div id="marcador-superior">
-      <div class="equipo azul"><span id="pts-azul">0</span></div>
-      <div id="reloj">5:00</div>
-      <div class="equipo rojo"><span id="pts-rojo">0</span></div>
-      <div id="meta"></div>
+  <!-- ============================================================ CLASIFICACIÓN GLOBAL -->
+  <section id="clasificacion" class="pantalla modal">
+    <div class="panel ancho">
+      <h2>CLASIFICACIÓN GLOBAL</h2>
+      <table class="tabla">
+        <thead><tr><th>#</th><th>PILOTO</th><th>PUNTOS</th><th>PARTIDAS</th><th>VICTORIAS</th><th>DERROTAS</th></tr></thead>
+        <tbody id="tabla-clasificacion"></tbody>
+      </table>
+      <button type="button" data-volver class="btn-volver">VOLVER</button>
+    </div>
+  </section>
+
+  <!-- ============================================================ HUD -->
+  <div id="hud" class="oculto">
+    <div id="marcador">
+      <div class="equipo azul"><span class="nombre">BLUE SQUAD</span><b id="pts-azul">0</b><i><em id="barra-azul"></em></i></div>
+      <div class="centro">
+        <span id="reloj">5:00</span>
+        <span id="prorroga" class="oculto">PRÓRROGA</span>
+        <small id="meta"></small>
+      </div>
+      <div class="equipo rojo"><b id="pts-rojo">0</b><span class="nombre">RED SQUAD</span><i><em id="barra-rojo"></em></i></div>
+    </div>
+
+    <div id="info-izq">
+      <span id="modo"></span>
+      <span><span id="ping">— ms</span> · <span id="fps"></span></span>
     </div>
     <div id="feed"></div>
-    <div id="vida-caja"><div class="etiqueta">BLINDAJE</div><div id="vida-barra"><div id="vida-relleno"></div></div><span id="vida-num">100</span></div>
-    <div id="info-red"><span id="ping">— ms</span> · <span id="modo"></span></div>
-    <div id="muerto" class="oculto"><div>DERRIBADO</div><small id="muerto-por"></small><small id="respawn"></small></div>
-    <div id="mira"></div>
-    <div id="tabla-marcador" class="oculto panel ancho">
-      <h2>Marcador</h2>
-      <div class="columnas"><table id="tm-azul"></table><table id="tm-rojo"></table></div>
-    </div>
-  </section>
 
-  <!-- Resultados -->
-  <section id="resultados" class="pantalla">
+    <div id="panel-vida" class="solo-jugador">
+      <div class="clase-cab"><b id="clase-nombre"></b><small id="clase-rol"></small></div>
+      <div class="barra-vida">
+        <div id="vida-relleno"></div>
+        <div id="escudo-relleno"></div>
+        <span><b id="vida-num">100</b> <small id="vida-max">/ 100</small></span>
+      </div>
+      <small id="escudo-num" class="escudo-num"></small>
+    </div>
+
+    <div id="habilidades" class="solo-jugador"></div>
+
+    <div id="panel-arma" class="solo-jugador">
+      <b id="arma-nombre"></b>
+      <small id="arma-datos"></small>
+      <div class="barra-cadencia"><div id="cadencia-relleno"></div></div>
+      <div id="carga-caja" class="oculto">
+        <span>CARGA <em id="carga-pct"></em></span>
+        <div class="barra-carga"><div id="carga-relleno"></div></div>
+      </div>
+      <span id="estado-camo" class="oculto">◈ CAMUFLADO — NO PUEDES DISPARAR</span>
+    </div>
+
+    <div id="mira" class="solo-jugador"><i></i><i></i><i></i><i></i><div id="marca-impacto"></div></div>
+    <div id="vineta-dano"></div>
+
+    <div id="aviso-central" class="oculto"><b id="aviso-titulo"></b><span id="aviso-sub"></span></div>
+
+    <div id="muerto" class="oculto">
+      <h2>NAVE DESTRUIDA</h2>
+      <p id="muerto-por"></p>
+      <p id="respawn"></p>
+      <small>CAMBIAR DE NAVE PARA LA REAPARICIÓN · FLECHAS O TECLAS 1–5</small>
+      <div id="muerto-clases"></div>
+    </div>
+
+    <div id="tabla-marcador" class="oculto">
+      <table id="tm-azul"></table>
+      <table id="tm-rojo"></table>
+    </div>
+
+    <div id="pausa" class="oculto">
+      <div class="panel">
+        <h2>MENÚ</h2>
+        <p class="tenue">La partida sigue en curso.</p>
+        <button id="btn-continuar" type="button" class="btn-principal">CONTINUAR</button>
+        <button id="btn-ajustes-pausa" type="button">AJUSTES</button>
+        <button id="btn-salir-pausa" type="button" class="btn-peligro">SALIR AL MENÚ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ RESULTADOS -->
+  <section id="resultados" class="pantalla modal">
     <div class="panel ancho">
-      <h2 id="res-titulo">Victoria</h2>
-      <p id="res-marcador" class="grande"></p>
-      <table><thead><tr><th>Piloto</th><th>Equipo</th><th>Bajas</th><th>Muertes</th></tr></thead>
-        <tbody id="res-tabla"></tbody></table>
-      <p class="aviso">La siguiente partida empieza en unos segundos…</p>
-      <button id="btn-salir-res">Salir al menú</button>
+      <h2 id="res-titulo"></h2>
+      <p id="res-marcador"></p>
+      <table class="tabla">
+        <thead><tr><th>PILOTO</th><th>EQUIPO</th><th>CLASE</th><th>BAJAS</th><th>MUERTES</th><th>ASIST.</th></tr></thead>
+        <tbody id="res-tabla"></tbody>
+      </table>
+      <p class="tenue">La siguiente partida empieza en unos segundos.</p>
+      <div class="fila-botones">
+        <button id="btn-seguir-res" type="button" class="btn-principal">SEGUIR</button>
+        <button id="btn-salir-res" type="button">SALIR AL MENÚ</button>
+      </div>
     </div>
   </section>
 
