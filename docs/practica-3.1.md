@@ -85,10 +85,54 @@ ejemplo `c3-standard-4`), porque Colab no garantiza qué CPU asigna.
 
 ## Costo estimado por hora
 
-*Pendiente:* llenar con la calculadora oficial (cloud.google.com/products/calculator)
-para la región `us-central1`:
+Precios **oficiales** de la página de precios de Compute Engine
+(cloud.google.com/products/compute/pricing/general-purpose, la misma fuente que
+usa la calculadora), región **`us-central1` (Iowa)**, en **USD**, consultados el
+**2026-11-09**. Solo incluyen la máquina virtual (vCPU + memoria, Linux); no
+incluyen disco, red ni IP pública, que con este tamaño son pequeños frente al
+cómputo. Mes = 730 horas.
 
-| Recurso | Uso | Precio/hora (calculadora) |
-|---|---|---|
-| Entrenamiento | Ya demostrado que basta CPU: ~2 min de 2 vCPU por entrenamiento, o Colab gratis | |
-| Inferencia: 12 vCPU optimizadas a cómputo (p. ej. 3 × `c3-standard-4`) | 24/7 con 2,000 bots activos | |
+| Máquina (4 vCPU) | Por hora (bajo demanda) | CUD 1 año | CUD 3 años |
+|---|---|---|---|
+| `c3-standard-4` (16 GiB) | 0.201608 | 0.127016 | 0.090724 |
+| `c3-highcpu-4` (8 GiB) | 0.170104 | 0.107168 | 0.076548 |
+| `e2-highcpu-4` (4 GiB) | 0.09894048 | 0.062332504 | 0.04452322 |
+| `e2-standard-2` (2 vCPU, 8 GiB) | 0.06701142 | — | — |
+
+(CUD = descuento por compromiso de uso de recursos.)
+
+### Inferencia: 2,000 bots a 10 Hz = 12 vCPU = 3 máquinas de 4 vCPU, 24/7
+
+| Opción | USD/hora | USD/mes | USD por bot y hora |
+|---|---|---|---|
+| **3 × `c3-standard-4`, bajo demanda (la del dimensionamiento)** | **0.6048** | **441.52** | **0.000302** |
+| 3 × `c3-highcpu-4`, bajo demanda (el modelo no necesita 16 GiB) | 0.5103 | 372.53 | 0.000255 |
+| 3 × `c3-standard-4` con CUD de 1 año | 0.3810 | 278.17 | 0.000191 |
+| 3 × `c3-standard-4` con CUD de 3 años | 0.2722 | 198.69 | 0.000136 |
+| 3 × `e2-highcpu-4`, bajo demanda | 0.2968 | 216.68 | 0.000148 |
+
+Lectura:
+
+- El costo base es **USD 0.60 por hora** (≈ USD 442 al mes) para tener 2,000 bots
+  decidiendo 10 veces por segundo, o sea **USD 0.0003 por bot y hora**.
+- `c3-highcpu-4` ahorra 16 % sin perder vCPU: la red del bot pesa unos KB, la
+  memoria extra de `standard` no se usa.
+- `e2` es la más barata, pero sus vCPU son de rendimiento variable (comparten
+  núcleo); la capacidad por vCPU se midió en Colab y habría que repetirla en
+  `e2` antes de elegirla. Para un servicio que debe responder en cada tick,
+  conviene C3.
+- Un CUD solo conviene si los bots corren todo el año; para un juego que
+  arranca, primero bajo demanda y autoescalado según los bots activos.
+
+### Entrenamiento
+
+Se demostró que basta CPU (la GPU fue 68 % más lenta). Un entrenamiento dura
+~2 min en 2 vCPU: en `e2-standard-2` cuesta **USD 0.0022** por entrenamiento
+(0.06701142 × 2/60), prácticamente nada; también puede hacerse gratis en Colab.
+Por eso no vale la pena pagar GPU para este bot. El entrenamiento, a diferencia
+del servidor de partida, sí puede correr en instancias Spot: si lo interrumpen se
+reanuda desde el último punto guardado.
+
+Pendiente opcional: confirmar el total armando la misma configuración en la
+calculadora (cloud.google.com/products/calculator) y guardar el enlace o la
+captura en `docs/evidencias/`.

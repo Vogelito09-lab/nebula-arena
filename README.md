@@ -8,7 +8,7 @@ sigue las prácticas del material en el orden recomendado: 3.1 → 3.3 → 3.2 �
 
 | Práctica | Hecho y probado | Falta | Documento |
 |---|---|---|---|
-| 3.1 Entrenar y servir un bot | CPU vs GPU T4 medidos en Colab; dimensionamiento de 2,000 bots | Costo por hora (calculadora) | [practica-3.1](docs/practica-3.1.md) |
+| 3.1 Entrenar y servir un bot | CPU vs GPU T4 medidos en Colab; dimensionamiento de 2,000 bots; costo con precios oficiales (USD 0.60/h, 3 × c3-standard-4) | Opcional: captura de la calculadora | [practica-3.1](docs/practica-3.1.md) |
 | 3.3 Contenedores y orquestación | Servidor 2.0 (5 clases, proyectiles, habilidades, bots de reglas), imagen, 82 pruebas (las 29 de la 1.2 sin cambios); flota de Agones en kind (Ready → Allocated → Shutdown) | **Primero al tener Google Cloud:** Artifact Registry, GKE y capturas de `kubectl get gameservers` | [practica-3.3](docs/practica-3.3.md) |
 | 3.2 Pipeline CI/CD | Workflow en GitHub con pruebas y smoke test en verde | Publicar y actualizar la flota en GKE | [practica-3.2](docs/practica-3.2.md) |
 | 3.4 Autoescalado y carga | Autoscaler, matchmaker + HPA, Prometheus, Grafana y Locust en kind; 2 rampas locales con gráficas | Rampa y pico de 1,000, 500 espectadores y nodos escalando, en GKE | [practica-3.4](docs/practica-3.4.md) |
