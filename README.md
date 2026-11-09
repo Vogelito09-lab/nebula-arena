@@ -21,6 +21,10 @@ son mediciones reales, con su fecha y la máquina donde se tomaron. Lo hecho en
 **kind** (Kubernetes local) es un ensayo: las evidencias del entregable deben
 salir de GKE.
 
+**Entregables finales (borradores):** [reporte técnico](docs/reporte-tecnico.md),
+[guion de la presentación](docs/presentacion.md). Para revisar en local sin nube:
+[guía de revisión](docs/revision-local.md).
+
 **Orden al activar Google Cloud** ([cómo activarlo](docs/google-cloud.md)):
 3.3 en la nube → 3.2 publicando → 3.4 → 3.5 → 3.6 → reporte y demo.
 
