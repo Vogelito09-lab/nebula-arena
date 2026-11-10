@@ -123,6 +123,10 @@ def validar(d, mi_id):
         if d["clase"] not in juego.CLASES:
             return None
         limpio["clase"] = d["clase"]
+    if "equipo" in d:                            # escuadrón preferido (solo al unirse)
+        if d["equipo"] not in juego.EQUIPOS:
+            return None
+        limpio["equipo"] = d["equipo"]
     if "hab" in d:
         if d["hab"] not in ("q", "e", "s"):
             return None
@@ -201,7 +205,7 @@ async def jugador(ws):
                 return
             mi_id = limpio["id"]
             yo = motor.unir(mi_id, limpio["x"], limpio["y"], limpio.get("nombre"), ahora,
-                            clase=limpio.get("clase"))
+                            clase=limpio.get("clase"), equipo=limpio.get("equipo"))
             await ws.send(json.dumps({"bienvenida": {
                 "id": mi_id, "equipo": yo["equipo"], "x": yo["x"], "y": yo["y"],
                 "clase": yo["clase"], "mapa": juego.mapa(), "clases": juego.CLASES}}))

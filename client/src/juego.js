@@ -15,7 +15,7 @@ import { aMundo } from "./render/coordenadas.js";
 import { Efectos } from "./render/efectos.js";
 import { construirEstacion } from "./render/estacion.js";
 import { COLOR_EQUIPO, CIAN } from "./render/materiales.js";
-import { ambienteEspacial } from "./render/motor.js";
+import { ambienteEspacial, orientarLuces } from "./render/motor.js";
 import { crearNave, liberarNave } from "./render/naves.js";
 
 const RADIO = 1;
@@ -28,7 +28,8 @@ const ORDEN = ["interceptor", "titan", "spectre", "destroyer", "phantom"];
 export class Sesion {
   /**
    * @param {object} o
-   *   motor, hud, url, modo ("jugar"|"espectar"), nombre, clase, alCerrar(mensaje, error)
+   *   motor, hud, url, modo ("jugar"|"espectar"), nombre, clase, escuadron ("azul"|"rojo"|undefined),
+   *   alCerrar(mensaje, error)
    */
   constructor(o) {
     Object.assign(this, o);
@@ -63,7 +64,9 @@ export class Sesion {
       if (this.modo === "jugar") {
         this.id = `p-${Math.random().toString(36).slice(2, 10)}`;
         // (0, 0) está fuera del área válida: el servidor nos coloca en la base del equipo.
-        ws.send(JSON.stringify({ id: this.id, x: 0, y: 0, nombre: this.nombre, clase: this.clase }));
+        const alta = { id: this.id, x: 0, y: 0, nombre: this.nombre, clase: this.clase };
+        if (this.escuadron) alta.equipo = this.escuadron;   // preferencia; el servidor decide si hay lugar
+        ws.send(JSON.stringify(alta));
       }
     };
     ws.onmessage = (m) => this._recibir(JSON.parse(m.data));
@@ -114,6 +117,8 @@ export class Sesion {
     if (this.modo === "jugar") {
       Object.assign(this, { id: b.id, equipo: b.equipo, x: b.x, y: b.y, clase: b.clase });
       this.camara.orientarPara(this.equipo);
+      orientarLuces(this.escena, this.equipo);
+      this.motor.renderer.shadowMap.needsUpdate = true;   // las sombras son estáticas
       this.camara.colocar(aMundo(this.x, this.y));
       this.hud.modo(nombreEquipo(this.equipo), this.equipo);
       this.hud.construirSelectorClases(this.clases, (c) => this.elegirClase(c));

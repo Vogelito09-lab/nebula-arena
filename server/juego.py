@@ -115,14 +115,17 @@ class Partida(Combate, Habilidades, Bots):
                 "bajas": 0, "muertes": 0, "asist": 0, "dispara": False,
                 "est": {}, "cd": {"q": 0.0, "e": 0.0, "s": 0.0}}
 
-    def unir(self, jid, x, y, nombre=None, ahora=0.0, clase=None):
+    def unir(self, jid, x, y, nombre=None, ahora=0.0, clase=None, equipo=None):
         """Alta de un humano. La primera posición se acepta si es válida;
         si no, aparece en la base de su equipo. El primer humano en llegar a
-        una arena vacía arranca la partida (el reloj empieza aquí)."""
+        una arena vacía arranca la partida (el reloj empieza aquí).
+        `equipo` es la preferencia del jugador: se respeta mientras ese equipo
+        tenga lugar para humanos; si no, se asigna el equipo con menos humanos."""
         if not self.humanos():
             self.exhibicion = False           # la exhibición de bots termina aquí
             self.reiniciar(ahora)
-        equipo = self._equipo_libre()
+        if equipo not in EQUIPOS or len(self.humanos(equipo)) >= POR_EQUIPO:
+            equipo = self._equipo_libre()
         self.e[jid] = self._ficha(jid, nombre or jid, equipo, False, clase)
         self.e[jid].update(x=float(x), y=float(y))
         if choca(x, y):
