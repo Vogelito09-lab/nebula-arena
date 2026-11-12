@@ -1,0 +1,12 @@
+Method,Name,Error,Occurrences,First Seen,Last Seen
+HTTP,asignacion,"ConnectionError(ProtocolError('Connection aborted.', ConnectionResetError(10054, 'Se ha forzado la interrupción de una conexión existente por el host remoto', None, 10054, None)))",2,2026-11-09T20:42:37Z,2026-11-09T20:42:37Z
+HTTP,asignacion,HTTPError('503 Server Error: SERVICE UNAVAILABLE for url: http://a6cd6956a66f14954a5b0517b09e7786-2138136351.us-east-2.elb.amazonaws.com/match'),198,2026-11-09T20:38:05Z,2026-11-09T20:47:51Z
+WS,conexion,RuntimeError('no se obtuvo servidor tras varios intentos'),7,2026-11-09T20:40:04Z,2026-11-09T20:47:31Z
+WS,rtt,"ConnectionResetError(10054, 'Se ha forzado la interrupción de una conexión existente por el host remoto', None, 10054, None)",81,2026-11-09T20:42:02Z,2026-11-09T20:47:55Z
+WS,desconexion,WebSocketConnectionClosedException('socket is already closed.'),6,2026-11-09T20:43:36Z,2026-11-09T20:47:33Z
+WS,rtt,WebSocketConnectionClosedException('Connection to remote host was lost.'),6,2026-11-09T20:43:35Z,2026-11-09T20:47:33Z
+WS,conexion,WebSocketTimeoutException('Connection timed out'),9,2026-11-09T20:41:39Z,2026-11-09T20:41:39Z
+WS,rtt,JSONDecodeError('Expecting value: line 1 column 1 (char 0)'),26,2026-11-09T20:43:07Z,2026-11-09T20:47:57Z
+WS,desconexion,"ConnectionResetError(10054, 'Se ha forzado la interrupción de una conexión existente por el host remoto', None, 10054, None)",115,2026-11-09T20:42:02Z,2026-11-09T20:47:55Z
+WS,rtt,WebSocketTimeoutException('Connection timed out'),322,2026-11-09T20:41:18Z,2026-11-09T20:48:01Z
+WS,desconexion,"ConnectionAbortedError(10053, 'Se ha anulado una conexión establecida por el software en su equipo host', None, 10053, None)",22,2026-11-09T20:43:08Z,2026-11-09T20:47:58Z

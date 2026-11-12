@@ -1,0 +1,17 @@
+﻿Pipeline CI/CD en GitHub Actions (practica 3.2, variante AWS)
+Ejecucion: https://github.com/Vogelito09-lab/nebula-arena/actions/runs/42694334223
+Commit: c295bf8dd34140fbc7461c63943eba8b063aacf2  rama: main  resultado: success
+
+Trabajos:
+pruebas    completed success  (18 s)
+smoke      completed success  (22 s)
+publicar   completed success  (18 s)
+desplegar  completed success  (24 s)
+
+> kubectl get gameservers (imagen desplegada por el pipeline)
+NOMBRE                     ESTADO   IMAGEN
+nebula-fleet-h9d2j-6hxnk   Ready    ********1139.dkr.ecr.us-east-2.amazonaws.com/nebula-server:c295bf8dd34140fbc7461c63943eba8b063aacf2
+nebula-fleet-h9d2j-dn7px   Ready    ********1139.dkr.ecr.us-east-2.amazonaws.com/nebula-server:c295bf8dd34140fbc7461c63943eba8b063aacf2
+nebula-fleet-h9d2j-ntslt   Ready    ********1139.dkr.ecr.us-east-2.amazonaws.com/nebula-server:c295bf8dd34140fbc7461c63943eba8b063aacf2
+
+> imagen del matchmaker: ********1139.dkr.ecr.us-east-2.amazonaws.com/matchmaker:c295bf8dd34140fbc7461c63943eba8b063aacf2

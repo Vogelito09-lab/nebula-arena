@@ -61,3 +61,19 @@ variable "parametro_llave" {
   type        = string
   default     = "/nebula/score-api-key"
 }
+
+variable "presupuesto_usd" {
+  description = "Gasto mensual (antes de créditos) a partir del cual AWS avisa por correo."
+  type        = number
+  default     = 15
+}
+
+variable "correo_alertas" {
+  description = <<-EOT
+    Correo que recibe las alertas del presupuesto. No se sube a Git: ponlo en
+    infra-aws/local.auto.tfvars (ignorado) como  correo_alertas = "tu@correo".
+    Si se deja vacío, no se crea el presupuesto.
+  EOT
+  type        = string
+  default     = ""
+}

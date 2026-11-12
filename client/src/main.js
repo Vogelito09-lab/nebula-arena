@@ -261,7 +261,7 @@ function jugar(modo) {
   for (const b of document.querySelectorAll("#form-inicio button")) b.disabled = true;
   aviso(`Conectando a ${url}…`);
   sesion = new Sesion({
-    motor, hud, url, modo, nombre, clase: ajustes.clase ?? CLASE_DEFECTO,
+    motor, hud, url, modo, nombre, clase: ajustes.clase ?? CLASE_DEFECTO, escuadron: colorHangar,
     alCerrar: (mensaje, error) => volverAlMenu(mensaje, error),
   });
   // la escena del juego se activa cuando llega la bienvenida

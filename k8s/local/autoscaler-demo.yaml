@@ -1,0 +1,16 @@
+# FleetAutoscaler para la demo en vivo en la laptop (clúster kind de un nodo).
+# Aplica la recomendación del reporte de la 3.4: una reserva FIJA de servidores
+# libres en lugar del 20 %, que con poca carga deja la flota sin servidores Ready.
+# En la laptop usamos 5 (no 8) porque todo corre en un solo nodo.
+apiVersion: autoscaling.agones.dev/v1
+kind: FleetAutoscaler
+metadata:
+  name: nebula-autoscaler
+spec:
+  fleetName: nebula-fleet
+  policy:
+    type: Buffer
+    buffer:
+      bufferSize: 5
+      minReplicas: 5
+      maxReplicas: 20

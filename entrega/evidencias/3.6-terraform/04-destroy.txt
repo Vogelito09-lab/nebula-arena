@@ -1,0 +1,34 @@
+== terraform destroy (2026-11-09) ==
+
+1. Antes del destroy se borraron el Service LoadBalancer del matchmaker y la flota
+   (los crea Kubernetes, no Terraform; si no, el balanceador quedaría huérfano).
+2. terraform plan -destroy -out destroy.tfplan  ->  Plan: 0 to add, 0 to change, 46 to destroy.
+3. terraform apply destroy.tfplan  ->  45 recursos destruidos en 23 min. Dos problemas encontrados:
+   a) El desinstalador de Agones (hook de Helm) no podía descargar su imagen porque
+      Terraform ya había borrado la ruta a internet. Se borró el job atorado y se
+      corrigió el código: el grupo de nodos ahora depende de la ruta (cluster.tf).
+   b) force_destroy del usuario de GitHub intenta iam:DeleteLoginProfile, que la
+      política de la organización (plan gratuito) niega. Se quitó force_destroy y
+      su llave se borró con la CLI; un segundo plan/apply destruyó el usuario.
+4. Total: 46 de 46 recursos destruidos. terraform state list -> vacío.
+
+== Comprobación de recursos huérfanos (2026-11-09 15:25, us-east-2) ==
+
+Clústeres EKS ..................... ninguno
+Balanceadores (clásicos y v2) ..... ninguno
+IPs elásticas ..................... ninguna
+VPC no predeterminadas ............ ninguna
+Repositorios ECR .................. ninguno
+Lambda / DynamoDB / API Gateway ... ninguno
+Usuarios y roles IAM 'nebula*' .... ninguno
+Instancias EC2 activas ............ i-078b91404bcbe9360 (t3.micro "tablero-salome", creada el 2026-10-26,
+                                    ANTES del proyecto; no es de Nebula Arena) y su disco de 8 GB
+Logs de CloudWatch ................ /aws/apigateway/welcome (de la cuenta, no del proyecto)
+
+Etiqueta proyecto=nebula-arena: la API de etiquetas aún listaba 2 reglas de grupo de seguridad,
+pero describe-security-group-rules responde "InvalidSecurityGroupRuleId.NotFound": ya no existen
+(el índice de etiquetas tarda en actualizarse).
+
+Se conservan a propósito (costo prácticamente cero):
+- s3://nebula-tfstate-********1139  (estado de Terraform, para volver a crear todo)
+- SSM /nebula/score-api-key          (llave de la tabla de líderes, SecureString estándar: gratis)

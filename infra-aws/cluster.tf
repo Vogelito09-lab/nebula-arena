@@ -88,13 +88,24 @@ resource "aws_eks_node_group" "juego" {
     ignore_changes = [scaling_config[0].desired_size]
   }
 
-  depends_on = [aws_iam_role_policy_attachment.nodos]
+  # La ruta a internet debe existir mientras haya nodos: al destruir, Terraform
+  # la borraba primero y el desinstalador de Agones (Helm) no podía descargar su
+  # imagen, así que el destroy se atoraba. Con esta dependencia se borra al final.
+  depends_on = [aws_iam_role_policy_attachment.nodos, aws_route_table_association.publica]
 }
 
 # Agente de "Pod Identity": da permisos de AWS a pods concretos (el autoscaler).
 resource "aws_eks_addon" "pod_identity" {
   cluster_name = aws_eks_cluster.nebula.name
   addon_name   = "eks-pod-identity-agent"
+  depends_on   = [aws_eks_node_group.juego]
+}
+
+# metrics-server: lo necesita el HPA del matchmaker (capa 2) para medir la CPU.
+# EKS no lo trae instalado; sin él, el HPA muestra "cpu: <unknown>".
+resource "aws_eks_addon" "metrics_server" {
+  cluster_name = aws_eks_cluster.nebula.name
+  addon_name   = "metrics-server"
   depends_on   = [aws_eks_node_group.juego]
 }
 

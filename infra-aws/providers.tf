@@ -4,11 +4,22 @@
 #
 # Credenciales: nunca van aquí. Terraform usa las de "aws login" (temporales).
 terraform {
-  required_version = ">= 1.6"
+  required_version = ">= 1.10"
   required_providers {
     aws     = { source = "hashicorp/aws", version = "~> 6.0" }
     archive = { source = "hashicorp/archive", version = "~> 2.4" }
     helm    = { source = "hashicorp/helm", version = "~> 2.17" }
+  }
+
+  # Estado remoto en S3 con bloqueo nativo (use_lockfile, Terraform >= 1.10):
+  # ya no hace falta la tabla de DynamoDB que pide el material para el bloqueo.
+  # El bucket se crea una vez a mano (ver README) y se pasa al iniciar:
+  #   terraform init -backend-config="bucket=nebula-tfstate-<ID-DE-CUENTA>"
+  backend "s3" {
+    key          = "nebula/aws.tfstate"
+    region       = "us-east-2"
+    encrypt      = true
+    use_lockfile = true
   }
 }
 
@@ -39,3 +50,4 @@ provider "aws" {
     }
   }
 }
+

@@ -1,7 +1,67 @@
 # Práctica 3.4 — Autoescalado, métricas y simulación de jugadores
 
+**Equipo:** Jarom Cortes Perez y Carlos Antonio Vogel Romero · Instituto Tecnológico de Colima (TecNM) · Noviembre de 2026
+
 **Objetivo:** generar carga realista contra la flota de la 3.3, observar el
 autoescalado y obtener la curva latencia vs CCU.
+
+## Entregado en AWS (2026-11-09)
+
+Clúster EKS `nebula` en us-east-2 (nodos m7i-flex.large, mínimo 2 y máximo 6).
+Rampa de **300 jugadores**, 1 jugador nuevo por segundo, 10 minutos. Locust corrió
+en la laptop (Colima) con 1 maestro y 4 workers contra el matchmaker
+(LoadBalancer de AWS).
+
+```powershell
+locust -f locustfile.py Jugador --master --expect-workers 4 --headless -u 300 -r 1 -t 10m --csv reports/rampa-aws --csv-full-history
+python loadtest/analizar.py --prefijo rampa-aws --dir loadtest/reports --prometheus http://localhost:9090 --etiqueta "EKS us-east-2"
+```
+
+**Las tres capas escalaron solas:**
+
+| Capa | Antes | Pico | Reacción |
+|---|---|---|---|
+| 1 — flota (FleetAutoscaler, buffer) | 3 servidores Ready | 37 servidores (34 en partida) | primer escalado a los 43 s |
+| 2 — matchmaker (HPA por CPU) | 2 réplicas | 2 réplicas (CPU 2–3 % de 60 %) | no hizo falta escalar |
+| 3 — nodos (Cluster Autoscaler) | 4 nodos | 6 nodos (el máximo) | 2→4, 4→5 y 5→6 por pods pendientes |
+
+**Resultados** (`entrega/evidencias/3.4-autoescalado/resumen.json`):
+
+| Métrica | Valor |
+|---|---|
+| CCU máximo (Prometheus) | 252 |
+| Tick p99 del servidor | ≤ 2.5 ms (presupuesto: 50 ms) |
+| Tick rate | 20 Hz sostenido |
+| RTT con ≤ 164 jugadores | p50 120 ms, p95 320 ms |
+| RTT con > 200 jugadores | p50 5–8 s, p95 > 12 s (ver hallazgos) |
+| Asignaciones rechazadas (503, sin servidores) | 200 de 234 |
+
+**Hallazgos:**
+
+1. **El techo fue el máximo de nodos, no el código.** Con 6 nodos caben ~34 servidores (cada uno pide 250m de CPU), así que a partir de ~250 jugadores los servidores nuevos se quedaron `Pending` y el matchmaker respondió 503. Ese máximo de 6 se puso a propósito para no gastar los créditos. Para 1,000 jugadores harían falta unos 20 nodos.
+2. **Los servidores nunca se saturaron.** El tick p99 se quedó en 2.5 ms (el 5 % de su presupuesto de 50 ms), el tick rate en 20 y la CPU máxima de un nodo en 74 %.
+3. **La latencia se disparó a partir de ~200 jugadores, y la causa probable es el generador de carga.** Las peticiones por segundo de Locust bajaron de 55 a 7 mientras los usuarios seguían subiendo, y al mismo tiempo los servidores seguían en 20 Hz. Eso apunta a la laptop (4 procesos de Python con cientos de websockets por internet doméstico), no al clúster. **No está comprobado:** para confirmarlo hay que correr Locust dentro de AWS, cerca del clúster.
+4. **La meta de p95 < 80 ms no se puede medir desde Colima.** El RTT base de Colima a Ohio es de ~106 ms antes de cualquier carga (primera partida, práctica 3.3).
+5. **Faltaba metrics-server.** EKS no lo instala, y sin él el HPA mostraba `cpu: <unknown>`. Se agregó como complemento de EKS en `infra-aws/cluster.tf`.
+
+**Evidencias** (`entrega/evidencias/3.4-autoescalado/`):
+
+![Dashboard de Grafana en EKS al arrancar la rampa: jugadores conectados (CCU), servidores por estado, tick p99, tick rate y nodos del clúster.](../entrega/evidencias/3.4-autoescalado/grafana-durante-la-prueba.png)
+
+![Dashboard de Grafana durante la rampa de 300 jugadores en EKS.](../entrega/evidencias/3.4-autoescalado/02-grafana-rampa-300.png)
+
+![Reacción de las tres capas de autoescalado durante la rampa (generada con loadtest/analizar.py a partir de Prometheus).](../entrega/evidencias/3.4-autoescalado/reaccion_autoescalado.png)
+
+![Jugadores conectados contra la latencia p95 medida por Locust.](../entrega/evidencias/3.4-autoescalado/ccu_vs_p95.png)
+
+![Jugadores conectados contra servidores de juego en la flota.](../entrega/evidencias/3.4-autoescalado/ccu_vs_servidores.png)
+
+<!-- consola: ../entrega/evidencias/3.4-autoescalado/01-estado-durante-la-rampa.txt | 1-20,33-35 | Estado del clúster a mitad de la rampa: 6 nodos (el máximo), la flota en 37 servidores con 34 en partida, el HPA del matchmaker y los eventos del Cluster Autoscaler (2→4, 4→5 y 5→6 nodos). -->
+
+**Pendiente:**
+
+- Espectadores (500 por CDN): falta la parte de S3 + CloudFront.
+- Pico 1×→10×.
 
 | Pieza | Archivo | Estado |
 |---|---|---|

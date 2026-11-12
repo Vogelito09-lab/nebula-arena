@@ -1,5 +1,7 @@
 # Práctica 3.1 — Entrenar y servir un bot sencillo
 
+**Equipo:** Jarom Cortes Perez y Carlos Antonio Vogel Romero · Instituto Tecnológico de Colima (TecNM) · Noviembre de 2026
+
 **Objetivo:** entrenar un agente de aprendizaje por refuerzo (PPO, Stable-Baselines3)
 en un entorno simulado (`CartPole-v1`, sustituto didáctico de la mecánica de
 equilibrio de una nave) y medir el costo y la latencia de su inferencia.

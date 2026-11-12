@@ -1,5 +1,7 @@
 # Práctica 3.5 — Tabla de líderes serverless
 
+**Equipo:** Jarom Cortes Perez y Carlos Antonio Vogel Romero · Instituto Tecnológico de Colima (TecNM) · Noviembre de 2026
+
 **Objetivo:** recibir el resultado de cada partida y mantener el top 10 global sin
 administrar servidores.
 
@@ -17,6 +19,12 @@ administrar servidores.
 | URL pública funcionando (curl del material) | Hecho: 4 partidas → 201, sin llave → 401, puntos negativos → 400 | `03-prueba-cloudshell.png`, `04-lecturas-desde-pc.txt` |
 | Prueba de carga 80/20 con 500 usuarios | Hecha dos veces, antes y después de una mejora | `06-carga-antes_*`, `07-carga-despues_*` |
 | Comparación de costo serverless vs VM | Hecha (abajo) | — |
+
+![Prueba de la URL pública desde AWS CloudShell con los curl del material: 4 partidas registradas (201), sin llave rechazada (401), puntos negativos rechazados (400) y el top resultante. Recorte de la captura completa (03-prueba-cloudshell.png).](../entrega/evidencias/3.5-tabla-lideres/03-prueba-cloudshell-recorte.png)
+
+<!-- consola: ../entrega/evidencias/3.5-tabla-lideres/02-terraform-apply.txt | 314-319 | Final del terraform apply de la tabla de líderes: 13 recursos creados y la URL pública. -->
+
+<!-- consola: ../entrega/evidencias/3.5-tabla-lideres/04-lecturas-desde-pc.txt | todo | Lecturas desde la PC, fuera de AWS: GET /top, GET /jugador/ana y los tiempos de 20 lecturas. -->
 
 ### Arquitectura
 
@@ -50,11 +58,17 @@ cliente / servidor de juego ──HTTPS──> API Gateway (HTTP API, límite 10
 | Concurrencia máxima de la Lambda | 10 | 10 |
 | Latencia de cliente p50 / p95 / p99 | 75 / 130 / 260 ms | 77 / 110 / 210 ms |
 
+<!-- consola: ../entrega/evidencias/3.5-tabla-lideres/06-carga-antes_cloudwatch.txt | todo | Métrica de concurrencia de la Lambda en CloudWatch durante la prueba, ANTES de la mejora: la concurrencia máxima se quedó en 10, el límite de la cuenta. -->
+
+<!-- consola: ../entrega/evidencias/3.5-tabla-lideres/07-carga-despues_cloudwatch.txt | todo | Las mismas métricas DESPUÉS de la mejora (caché de 2 s y límite de 1000 req/s), con el resumen de Locust. -->
+
 **Qué pasó:**
+
 1. Cada `GET /top` hacía un `scan` completo, de unos 50 ms. La cuenta nueva solo permite **10 ejecuciones de Lambda a la vez** (`ConcurrentExecutions` = 10 en Service Quotas), así que con ~440 req/s la mayoría se rechazaba.
 2. Además, el límite de API Gateway que puse (100 req/s) rechazaba otra parte con `429`.
 
 **Mejora aplicada:**
+
 - **Caché del top de 2 segundos** en memoria de cada contenedor. Un top con 2 s de retraso es aceptable para una tabla de líderes.
 - **Límite de API Gateway subido a 1000 req/s.**
 

@@ -1,0 +1,135 @@
+terraform plan -out completo.tfplan  (2026-11-09 14:52)
+Estado remoto: s3://nebula-tfstate-********1139/nebula/aws.tfstate (bloqueo con use_lockfile)
+
+data.archive_file.leaderboard: Reading...
+data.archive_file.leaderboard: Read complete after 0s [id=05745697d07fc828dddc45a4aa92c6242c510f50]
+data.aws_availability_zones.zonas: Reading...
+data.aws_caller_identity.actual: Reading...
+aws_iam_user.github: Refreshing state... [id=nebula-github]
+aws_iam_role.cluster: Refreshing state... [id=nebula-eks-cluster]
+aws_vpc.nebula: Refreshing state... [id=vpc-0c0723f88d4ebeca6]
+aws_iam_role.nodos: Refreshing state... [id=nebula-eks-nodos]
+aws_iam_role.leaderboard: Refreshing state... [id=nebula-leaderboard-lambda]
+aws_apigatewayv2_api.leaderboard: Refreshing state... [id=5d7wm0pa26]
+aws_dynamodb_table.scores: Refreshing state... [id=nebula-scores]
+aws_iam_role.autoscaler: Refreshing state... [id=nebula-cluster-autoscaler]
+data.aws_caller_identity.actual: Read complete after 0s [id=********1139]
+aws_cloudwatch_log_group.leaderboard: Refreshing state... [id=/aws/lambda/nebula-leaderboard]
+data.aws_availability_zones.zonas: Read complete after 1s [id=us-east-2]
+aws_ecr_repository.imagenes["matchmaker"]: Refreshing state... [id=matchmaker]
+aws_ecr_repository.imagenes["nebula-server"]: Refreshing state... [id=nebula-server]
+aws_apigatewayv2_stage.default: Refreshing state... [id=$default]
+aws_iam_role_policy_attachment.nodos["arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"]: Refreshing state... [id=nebula-eks-nodos/arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy]
+aws_iam_role_policy_attachment.nodos["arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"]: Refreshing state... [id=nebula-eks-nodos/arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly]
+aws_iam_role_policy_attachment.nodos["arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"]: Refreshing state... [id=nebula-eks-nodos/arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy]
+aws_iam_role_policy_attachment.cluster: Refreshing state... [id=nebula-eks-cluster/arn:aws:iam::aws:policy/AmazonEKSClusterPolicy]
+aws_iam_role_policy.leaderboard: Refreshing state... [id=nebula-leaderboard-lambda:nebula-leaderboard]
+aws_lambda_function.leaderboard: Refreshing state... [id=nebula-leaderboard]
+aws_ecr_lifecycle_policy.imagenes["nebula-server"]: Refreshing state... [id=nebula-server]
+aws_ecr_lifecycle_policy.imagenes["matchmaker"]: Refreshing state... [id=matchmaker]
+aws_internet_gateway.nebula: Refreshing state... [id=igw-007f7cd5aedc5c7f7]
+aws_subnet.publica[1]: Refreshing state... [id=subnet-0458368f779fe18ec]
+aws_subnet.publica[0]: Refreshing state... [id=subnet-0e7470428f515b9d7]
+aws_route_table.publica: Refreshing state... [id=rtb-0f9227e39be0ecdc7]
+aws_eks_cluster.nebula: Refreshing state... [id=nebula]
+aws_route_table_association.publica[1]: Refreshing state... [id=rtbassoc-0d4aedcff1de3f93f]
+aws_route_table_association.publica[0]: Refreshing state... [id=rtbassoc-0649020821eb91fe9]
+aws_lambda_permission.api_gateway: Refreshing state... [id=api-gateway]
+aws_apigatewayv2_integration.leaderboard: Refreshing state... [id=g6e6xr2]
+aws_apigatewayv2_route.rutas["GET /jugador/{jugador}"]: Refreshing state... [id=z7appz7]
+aws_apigatewayv2_route.rutas["GET /top"]: Refreshing state... [id=u9zrd67]
+aws_apigatewayv2_route.rutas["GET /healthz"]: Refreshing state... [id=z1g1066]
+aws_apigatewayv2_route.rutas["POST /score"]: Refreshing state... [id=sbvvp89]
+aws_iam_role_policy.autoscaler: Refreshing state... [id=nebula-cluster-autoscaler:nebula-cluster-autoscaler]
+aws_iam_user_policy.github: Refreshing state... [id=nebula-github:nebula-github]
+aws_eks_pod_identity_association.autoscaler: Refreshing state... [id=a-jmto6fefndhtov68u]
+aws_eks_access_entry.github: Refreshing state... [id=nebula:arn:aws:iam::********1139:user/nebula-github]
+aws_vpc_security_group_ingress_rule.juego["udp"]: Refreshing state... [id=sgr-044348b5623e785c0]
+aws_vpc_security_group_ingress_rule.juego["tcp"]: Refreshing state... [id=sgr-062b68b88fb7d70ca]
+aws_eks_node_group.juego: Refreshing state... [id=nebula:game-pool]
+aws_eks_addon.pod_identity: Refreshing state... [id=nebula:eks-pod-identity-agent]
+aws_eks_addon.metrics_server: Refreshing state... [id=nebula:metrics-server]
+helm_release.monitoreo: Refreshing state... [id=monitoreo]
+helm_release.cluster_autoscaler: Refreshing state... [id=cluster-autoscaler]
+helm_release.agones: Refreshing state... [id=agones]
+
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+  # aws_budgets_budget.nebula[0] will be created
+  + resource "aws_budgets_budget" "nebula" {
+      + account_id        = (known after apply)
+      + arn               = (known after apply)
+      + budget_type       = "COST"
+      + id                = (known after apply)
+      + limit_amount      = "15"
+      + limit_unit        = "USD"
+      + name              = "nebula-arena-mensual"
+      + name_prefix       = (known after apply)
+      + tags_all          = {
+          + "gestion"  = "terraform"
+          + "proyecto" = "nebula-arena"
+        }
+      + time_period_end   = "2087-06-15_00:00"
+      + time_period_start = (known after apply)
+      + time_unit         = "MONTHLY"
+
+      + cost_filter (known after apply)
+
+      + cost_types {
+          + include_credit             = false
+          + include_discount           = true
+          + include_other_subscription = true
+          + include_recurring          = true
+          + include_refund             = false
+          + include_subscription       = true
+          + include_support            = true
+          + include_tax                = true
+          + include_upfront            = true
+          + use_amortized              = false
+          + use_blended                = false
+        }
+
+      + notification {
+          + comparison_operator        = "GREATER_THAN"
+          + notification_type          = "ACTUAL"
+          + subscriber_email_addresses = [
+              + "********@colima.tecnm.mx",
+            ]
+          + subscriber_sns_topic_arns  = []
+          + threshold                  = 50
+          + threshold_type             = "PERCENTAGE"
+        }
+      + notification {
+          + comparison_operator        = "GREATER_THAN"
+          + notification_type          = "ACTUAL"
+          + subscriber_email_addresses = [
+              + "********@colima.tecnm.mx",
+            ]
+          + subscriber_sns_topic_arns  = []
+          + threshold                  = 80
+          + threshold_type             = "PERCENTAGE"
+        }
+      + notification {
+          + comparison_operator        = "GREATER_THAN"
+          + notification_type          = "FORECASTED"
+          + subscriber_email_addresses = [
+              + "********@colima.tecnm.mx",
+            ]
+          + subscriber_sns_topic_arns  = []
+          + threshold                  = 100
+          + threshold_type             = "PERCENTAGE"
+        }
+    }
+
+Plan: 1 to add, 0 to change, 0 to destroy.
+
+─────────────────────────────────────────────────────────────────────────────
+
+Saved the plan to: .build\completo.tfplan
+
+To perform exactly these actions, run the following command to apply:
+    terraform apply ".build\\completo.tfplan"

@@ -86,6 +86,16 @@ export class Motor {
   }
 }
 
+/** El equipo rojo ve la arena girada 180° (camara.orientarPara). Las luces giran
+ *  igual, para que los dos equipos vean la misma iluminación: si no, el rojo mira
+ *  de frente al sol y el reflejo del piso brillante aclara toda la escena. */
+export function orientarLuces(escena, equipo) {
+  const giro = equipo === "rojo" ? Math.PI : 0;
+  for (const luz of escena.userData.lucesGiran ?? []) {
+    luz.position.copy(luz.userData.base).applyAxisAngle(new THREE.Vector3(0, 1, 0), giro);
+  }
+}
+
 /** Luces y cielo comunes a la partida. */
 export function ambienteEspacial(escena) {
   escena.background = new THREE.Color(0x05070d);
@@ -103,6 +113,8 @@ export function ambienteEspacial(escena) {
   const relleno = new THREE.DirectionalLight(0x6f8cff, 0.6);
   relleno.position.set(40, 30, -50);
   escena.add(relleno);
+  for (const luz of [sol, relleno]) luz.userData.base = luz.position.clone();
+  escena.userData.lucesGiran = [sol, relleno];
 
   // estrellas
   const n = 1800, pos = new Float32Array(n * 3);
