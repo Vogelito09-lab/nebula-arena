@@ -1,5 +1,7 @@
 # Práctica 3.4 — Autoescalado, métricas y simulación de jugadores
 
+**Equipo:** Jarom Cortes Perez y Carlos Antonio Vogel Romero · Instituto Tecnológico de Colima (TecNM) · Noviembre de 2026
+
 **Objetivo:** generar carga realista contra la flota de la 3.3, observar el
 autoescalado y obtener la curva latencia vs CCU.
 
@@ -43,11 +45,21 @@ python loadtest/analizar.py --prefijo rampa-aws --dir loadtest/reports --prometh
 5. **Faltaba metrics-server.** EKS no lo instala, y sin él el HPA mostraba `cpu: <unknown>`. Se agregó como complemento de EKS en `infra-aws/cluster.tf`.
 
 **Evidencias** (`entrega/evidencias/3.4-autoescalado/`):
-- `02-grafana-rampa-300.png`: dashboard completo durante la rampa.
-- `reaccion_autoescalado.png`, `ccu_vs_p95.png`, `ccu_vs_servidores.png`.
-- `01-estado-durante-la-rampa.txt`: nodos, flota, HPA, pods pendientes y eventos del Cluster Autoscaler.
+
+![Dashboard de Grafana en EKS al arrancar la rampa: jugadores conectados (CCU), servidores por estado, tick p99, tick rate y nodos del clúster.](../entrega/evidencias/3.4-autoescalado/grafana-durante-la-prueba.png)
+
+![Dashboard de Grafana durante la rampa de 300 jugadores en EKS.](../entrega/evidencias/3.4-autoescalado/02-grafana-rampa-300.png)
+
+![Reacción de las tres capas de autoescalado durante la rampa (generada con loadtest/analizar.py a partir de Prometheus).](../entrega/evidencias/3.4-autoescalado/reaccion_autoescalado.png)
+
+![Jugadores conectados contra la latencia p95 medida por Locust.](../entrega/evidencias/3.4-autoescalado/ccu_vs_p95.png)
+
+![Jugadores conectados contra servidores de juego en la flota.](../entrega/evidencias/3.4-autoescalado/ccu_vs_servidores.png)
+
+<!-- consola: ../entrega/evidencias/3.4-autoescalado/01-estado-durante-la-rampa.txt | 1-20,33-35 | Estado del clúster a mitad de la rampa: 6 nodos (el máximo), la flota en 37 servidores con 34 en partida, el HPA del matchmaker y los eventos del Cluster Autoscaler (2→4, 4→5 y 5→6 nodos). -->
 
 **Pendiente:**
+
 - Espectadores (500 por CDN): falta la parte de S3 + CloudFront.
 - Pico 1×→10×.
 

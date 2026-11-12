@@ -1,5 +1,7 @@
 # Guion de la presentación final (10 minutos, con demo en vivo)
 
+**Equipo:** Jarom Cortes Perez y Carlos Antonio Vogel Romero · Instituto Tecnológico de Colima (TecNM) · Noviembre de 2026
+
 El manual pide una presentación de 10 minutos con **demostración en vivo del
 autoescalado**. El clúster de AWS se destruyó al terminar (cuesta ~USD 8 al día
 encendido): para la demo se recrea con `terraform apply` (~15 min) antes de la clase
@@ -43,6 +45,7 @@ solo escalan flota y pods (kind tiene un nodo fijo). Sirve para practicar la
 narración, no como evidencia.
 
 ## Diapositivas sugeridas (9)
+
 1. Título y equipo
 2. Problema
 3. El juego (captura)

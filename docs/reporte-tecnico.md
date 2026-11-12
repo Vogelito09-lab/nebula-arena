@@ -1,5 +1,7 @@
 # Reporte técnico — Nebula Arena en la nube
 
+**Equipo:** Jarom Cortes Perez y Carlos Antonio Vogel Romero · Instituto Tecnológico de Colima (TecNM) · Noviembre de 2026
+
 Unidad 3: Infraestructura y despliegue de videojuegos en la nube.
 
 Todas las cifras de este reporte salen de mediciones o de precios oficiales, con
@@ -12,6 +14,7 @@ estudio. El servidor de partida es autoritativo (Python asyncio + WebSocket, 20
 ticks/s) y corre en contenedores administrados por **Agones** sobre **Amazon EKS**.
 
 El resto de la plataforma:
+
 - **Escalado:** en tres capas (flota, pods y nodos).
 - **Métricas:** Prometheus y Grafana.
 - **Pruebas de carga:** Locust.
@@ -49,6 +52,7 @@ región que permite la cuenta del plan gratuito) y después se destruyó con
 | IaC | Terraform con estado remoto en S3 | `infra-aws/` |
 
 **Decisiones principales**
+
 - **Servidor autoritativo:** el cliente no decide el daño ni las posiciones. Se rechazan teletransportes, paredes atravesadas y mensajes inválidos.
 - **Drenado:** el servidor llama a `/shutdown` solo cuando la partida termina, así Agones nunca recicla un servidor con jugadores.
 - **Red pública sin NAT Gateway:** ahorra ~USD 33 al mes. Los servidores de juego necesitan IP pública de todos modos.
@@ -79,6 +83,8 @@ EKS 1.36, nodos `m7i-flex.large` (2 vCPU, 8 GB), Agones 1.62:
 
 Evidencia: `entrega/evidencias/3.3-cluster-agones/`.
 
+<!-- consola: ../entrega/evidencias/3.3-cluster-agones/02-partida-real.txt | 3-8,10-12 | Asignación de un servidor por el matchmaker en EKS y partida de 10 jugadores por internet desde Colima. -->
+
 ## 5. CI/CD (3.2)
 
 `pruebas` (107 pruebas de pytest) → `smoke` (imagen + partida de 10 jugadores
@@ -88,6 +94,8 @@ espera servidores `Ready` con la versión nueva).
 
 - **Corrida en verde:** run 42694334223, commit `c295bf8`, **1 min 33 s** de punta a punta.
 - **Imágenes inmutables:** ECR no deja reescribir una etiqueta, así que cada versión se rastrea a su commit.
+
+![Pipeline en verde en GitHub Actions (corrida 42694334223).](../entrega/evidencias/3.2-pipeline/02-github-actions.png)
 
 **Rollback:** se vuelve a desplegar la imagen del commit anterior, que sigue en ECR
 con su SHA, o se revierte el commit para que el pipeline la vuelva a publicar.
@@ -113,7 +121,10 @@ nodos tenían un máximo de 6, elegido para cuidar los créditos.
 | RTT hasta 164 jugadores | p50 120 ms, p95 320 ms |
 | RTT con más de 200 jugadores | de segundos (ver hallazgo 3) |
 
+![Reacción de las tres capas de autoescalado durante la rampa de 300 jugadores en EKS.](../entrega/evidencias/3.4-autoescalado/reaccion_autoescalado.png)
+
 **Hallazgos**
+
 1. **El techo fue el máximo de nodos.** A partir de ~250 jugadores los servidores nuevos se quedaron `Pending` y el matchmaker respondió 503 (198 de 234 asignaciones con 503). Con 42 jugadores por nodo, **1,000 jugadores necesitan ~24 nodos**.
 2. **Los servidores nunca se saturaron.** El tick rate se mantuvo en 20 y la CPU máxima de un nodo fue de 74 %.
 3. **La latencia alta arriba de 200 jugadores viene, con mayor probabilidad, del generador de carga** (una laptop con 4 procesos de Locust por internet doméstico). Las peticiones por segundo de Locust cayeron de 55 a 7 mientras el servidor seguía en 20 Hz. **No está comprobado:** se confirmaría corriendo Locust en una VM dentro de AWS.
@@ -121,10 +132,12 @@ nodos tenían un máximo de 6, elegido para cuidar los créditos.
 5. **EKS no trae metrics-server.** Sin él, el HPA no veía la CPU. Se agregó al Terraform.
 
 **En los ensayos locales (kind)** las pruebas de carga encontraron y corrigieron dos fallas reales:
+
 - `/ready` se llamaba una sola vez, y los servidores se quedaban atorados en `Scheduled`.
 - Python como PID 1 ignoraba `SIGTERM`, así que cada servidor tardaba 30 s en morir.
 
 **No medido:**
+
 - Rampa de 1,000 jugadores y pico de 1× a 10×. Necesitan ~24 nodos; se limitó a 6 para no agotar el crédito.
 - 500 espectadores por CDN.
 
@@ -149,6 +162,8 @@ Las escrituras se protegen con una llave en SSM y se usan sumas atómicas (`ADD`
 - **Mejora aplicada:** caché del top de 2 s y límite de API Gateway subido a 1000 req/s.
 - **Cuello de botella restante:** la cuota de **10 ejecuciones simultáneas** de Lambda de la cuenta nueva (lo normal es 1000; se pide en Service Quotas).
 - **Arranque en frío:** hasta 3.5 s en la primera ráfaga.
+
+![Prueba de la URL pública desde AWS CloudShell: escrituras con llave (201), sin llave (401), puntos negativos (400) y el top.](../entrega/evidencias/3.5-tabla-lideres/03-prueba-cloudshell-recorte.png)
 
 ## 8. Infraestructura como código (3.6)
 
@@ -177,6 +192,7 @@ Precios bajo demanda de AWS en us-east-2, consultados con la API de precios el
 | Gasto real del proyecto (1–9 nov) | ≈ USD 3.3 antes de créditos, sin contar EKS del día 9 (Cost Explorer tarda 24 h) | Cost Explorer |
 
 **Control de gasto:**
+
 - Presupuesto en Terraform que mide el costo antes de créditos y avisa al 50 %, al 80 % y al 100 % del pronóstico.
 - `destroy` al terminar cada sesión.
 - Un máximo de nodos en el autoescalador.
@@ -193,6 +209,7 @@ Precios bajo demanda de AWS en us-east-2, consultados con la API de precios el
 ## 11. Conclusiones
 
 La plataforma completa funcionó en AWS de punta a punta:
+
 - **Despliegue:** el pipeline publica la imagen y actualiza la flota sin cortar partidas.
 - **Autoescalado:** las tres capas escalaron solas con 300 jugadores, y los servidores nunca se saturaron.
 - **Tabla de líderes:** aguanta ~99 escrituras y lecturas por segundo con la cuota mínima de una cuenta nueva.

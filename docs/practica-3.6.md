@@ -1,5 +1,7 @@
 # Práctica 3.6 — Infraestructura como código (AWS)
 
+**Equipo:** Jarom Cortes Perez y Carlos Antonio Vogel Romero · Instituto Tecnológico de Colima (TecNM) · Noviembre de 2026
+
 **Objetivo:** crear con Terraform todo el entorno de Nebula Arena, revisarlo como
 código y destruirlo al terminar sin dejar recursos que sigan cobrando.
 
@@ -83,6 +85,12 @@ Los pasos completos, incluida la creación del bucket del estado, están en [`in
 | `03-cluster-funcionando.txt` | EKS `ACTIVE`, nodos, Agones, autoescalador, monitoreo, flota, HPA y matchmaker |
 | `04-destroy.txt` | `terraform destroy` de los 46 recursos y comprobación de que no quedó nada del proyecto cobrando |
 
+<!-- consola: ../entrega/evidencias/3.6-terraform/01-plan-sin-drift.txt | 1-2,62-64,128-128 | terraform plan contra la infraestructura viva, con estado remoto en S3: sin drift; lo único nuevo es el presupuesto. -->
+
+<!-- consola: ../entrega/evidencias/3.6-terraform/02-idempotencia.txt | todo | Segundo terraform plan: No changes (idempotencia). -->
+
+<!-- consola: ../entrega/evidencias/3.6-terraform/03-cluster-funcionando.txt | 1-10,26-35 | Clúster creado por Terraform funcionando: EKS ACTIVE, 5 nodos Ready, la flota con 3 servidores Ready, el HPA y el balanceador del matchmaker. -->
+
 ## Destroy sin recursos huérfanos
 
 1. **Antes del destroy** se borraron el balanceador del matchmaker y la flota. Los crea Kubernetes, no Terraform; sin este paso, el balanceador habría quedado huérfano y habría bloqueado el borrado de la red.
@@ -91,3 +99,5 @@ Los pasos completos, incluida la creación del bucket del estado, están en [`in
    - **Orden de borrado:** Terraform borró la ruta a internet antes que Agones. El desinstalador de Agones (un *hook* de Helm) ya no pudo descargar su imagen y el destroy se atoró. Se quitó el job atorado y se corrigió `cluster.tf`: el grupo de nodos ahora depende de la ruta, así que la ruta se borra al final.
    - **Usuario de GitHub:** `force_destroy` intenta `iam:DeleteLoginProfile`, y la política de la organización del plan gratuito lo niega. Se quitó `force_destroy`. Su llave, creada fuera de Terraform, se borra con la CLI antes del destroy (ver `github.tf`).
 4. **Resultado:** 46 de 46 recursos destruidos y `terraform state list` vacío. La comprobación en AWS no encontró clústeres, balanceadores, IPs, VPC, ECR, Lambda, DynamoDB, API Gateway ni usuarios o roles del proyecto. Solo quedan, a propósito y con costo prácticamente cero, el bucket del estado y la llave en SSM.
+
+<!-- consola: ../entrega/evidencias/3.6-terraform/04-destroy.txt | todo | Evidencia del terraform destroy (46 de 46 recursos) y la revisión de recursos huérfanos en us-east-2. -->

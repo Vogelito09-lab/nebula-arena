@@ -1,0 +1,36 @@
+Evidencia práctica 3.3: contenedor del servidor en la laptop (Docker Desktop, Windows 11), 2026-11-11 19:53
+
+> docker run -d --name nebula-evidencia -p 7654:7654 -p 9100:9100 nebula-server:1.2
+9f13a86a42f4a3e976f819d0dd1dc8c9f78fc8305ad0bf1406c4d4573f209d46
+
+> docker ps --filter name=nebula-evidencia
+CONTAINER ID   IMAGE               STATUS         PORTS
+9f13a86a42f4   nebula-server:1.2   Up 4 seconds   0.0.0.0:7654->7654/tcp, [::]:7654->7654/tcp, 0.0.0.0:9100->9100/tcp, [::]:9100->9100/tcp
+
+> docker logs nebula-evidencia
+2026-11-12 01:53:08,564 INFO websockets.server: server listening on 0.0.0.0:7654
+2026-11-12 01:53:08,564 INFO nebula: escuchando en :7654 (metricas :9100)
+2026-11-12 01:53:08,573 INFO nebula: SDK de Agones no disponible todavía; se reintenta /ready cada 1 s
+
+> python server/cliente_prueba.py --url ws://localhost:7654 --jugadores 10 --segundos 10
+10 jugadores, 10 s, 90 pings
+RTT p50=5.33 ms  p95=48.68 ms  p99=51.01 ms
+
+> curl -s localhost:9100/metrics | grep ^nebula
+nebula_players_connected 0.0
+nebula_tick_seconds_bucket{le="0.001"} 127.0
+nebula_tick_seconds_bucket{le="0.0025"} 313.0
+nebula_tick_seconds_bucket{le="0.005"} 319.0
+nebula_tick_seconds_bucket{le="0.01"} 319.0
+nebula_tick_seconds_bucket{le="0.025"} 319.0
+nebula_tick_seconds_bucket{le="0.05"} 319.0
+nebula_tick_seconds_bucket{le="0.1"} 319.0
+nebula_tick_seconds_bucket{le="+Inf"} 319.0
+nebula_tick_seconds_count 319.0
+nebula_tick_seconds_sum 0.3129316370018387
+nebula_tick_seconds_created 1.7944483885173125e+09
+nebula_tick_rate 19.660203327964005
+nebula_disconnects_total{motivo="normal"} 10.0
+nebula_disconnects_created{motivo="normal"} 1.7944484043453715e+09
+nebula_invalid_messages_total 0.0
+nebula_invalid_messages_created 1.7944483885174181e+09

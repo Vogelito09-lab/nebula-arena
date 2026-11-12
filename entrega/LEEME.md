@@ -1,17 +1,21 @@
 # Entrega — Nebula Arena en la nube (Unidad 3)
 
+- **Equipo:** Jarom Cortes Perez y Carlos Antonio Vogel Romero
+- **Escuela:** Instituto Tecnológico de Colima (TecNM)
 - **Repositorio:** https://github.com/Vogelito09-lab/nebula-arena (código, Terraform, pipeline y estos mismos archivos)
 - **Nube:** AWS, región us-east-2 (Ohio). Todo se creó con Terraform el 2026-11-09, se probó y se destruyó el mismo día.
 
 ## Documentos (`documentos/`)
 
+Cada PDF es el reporte de lo que hicimos, con portada, figuras numeradas y las capturas de evidencia. Su texto fuente está en `docs/reportes/` del repositorio.
+
 | Archivo | Qué es |
 |---|---|
-| `reporte-tecnico.pdf` | Reporte técnico del proyecto integrador (6 páginas): arquitectura, resultados, capacidad, tiempo de reacción del escalado, costos y recomendaciones |
+| `reporte-tecnico.pdf` | Reporte técnico del proyecto integrador (5 páginas y portada): arquitectura, resultados, capacidad, tiempo de reacción del escalado, costos y recomendaciones |
 | `practica-3.1.pdf` | Bot e inferencia: CPU vs GPU, capacidad y costo |
 | `practica-3.2.pdf` | Pipeline CI/CD con GitHub Actions, y rollback |
 | `practica-3.3.pdf` | Clúster EKS con Agones y partida real |
-| `practica-3.4.pdf` | Autoescalado en tres capas y prueba de carga de 300 jugadores |
+| `practica-3.4.pdf` | Reporte de la 3.4 (3 páginas y portada): las tres gráficas, capacidad por nodo, tiempo de reacción y recomendación de configuración |
 | `practica-3.5.pdf` | Tabla de líderes serverless, prueba de carga y costo serverless vs VM |
 | `practica-3.6.pdf` | Terraform: estado remoto, drift, idempotencia, presupuesto y destroy |
 | `presentacion.pdf` | Guion de la presentación de 10 minutos con la demo en vivo |

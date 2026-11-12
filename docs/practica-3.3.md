@@ -1,5 +1,7 @@
 # Práctica 3.3 — Contenerizar y orquestar el servidor de Nebula Arena
 
+**Equipo:** Jarom Cortes Perez y Carlos Antonio Vogel Romero · Instituto Tecnológico de Colima (TecNM) · Noviembre de 2026
+
 **Objetivo:** construir la imagen de un servidor de partida en WebSocket y
 desplegarlo como flota de Agones.
 
@@ -14,10 +16,15 @@ desplegarlo como flota de Agones.
 | Flota | `k8s/aws/fleet.yaml`: 3 réplicas; cada partida manda su resultado a la tabla de líderes (3.5) con la llave en un Secret |
 
 **Resultados:**
+
 - La flota pasó a **3 servidores `Ready` en 8 s** después de `kubectl apply`.
 - **Partida real por internet:** `POST /match` al matchmaker → servidor `nebula-fleet-…-2nt49` en `ec2-3-139-56-74…:7981`. Jugaron **10 jugadores durante 15 s** desde la PC: 130 pings, **RTT p50 = 106 ms**, p95 = 133 ms, p99 = 147 ms. Es la distancia de Colima a Ohio, la única región que permite la cuenta.
 - **Ciclo completo de Agones:** el servidor terminó su partida → `Shutdown` → la flota creó uno nuevo para mantener 3 `Ready`.
 - **Evidencia:** `entrega/evidencias/3.3-cluster-agones/`.
+
+<!-- consola: ../entrega/evidencias/3.2-pipeline/01-ejecucion-pipeline.txt | 11-15 | kubectl get gameservers ANTES de la asignación, en EKS: la flota con sus 3 servidores en Ready. -->
+
+<!-- consola: ../entrega/evidencias/3.3-cluster-agones/02-partida-real.txt | 1-19 | Asignación por el matchmaker y partida real por internet. Al final, kubectl get gameservers DESPUÉS: el servidor asignado terminó su partida (Shutdown) y la flota ya está creando su reemplazo (Scheduled). -->
 
 Todo se crea con `terraform apply` y se borra con `terraform destroy` (ver `infra-aws/README.md`).
 
@@ -74,6 +81,8 @@ curl localhost:9100/metrics | grep nebula
 
 Imagen `python:3.11-slim`, usuario sin privilegios (`USER 1000`), 206 MB. La versión actual es `1.2`: la 1.1 agregó el manejo de `SIGTERM` (ver abajo) y la 1.2 reintenta `/ready` hasta que el sidecar de Agones responde (hallazgo de la 3.4). El
 `.dockerignore` deja fuera las pruebas y los entornos virtuales.
+
+<!-- consola: ../entrega/evidencias/3.3-cluster-agones/03-docker-run-y-metricas.txt | 1-28 | docker run del servidor en la laptop, 10 jugadores de prueba y las métricas en /metrics (tick rate 19.66 de 20; 10 desconexiones normales; 0 mensajes inválidos). Repetido el 2026-11-11 para la evidencia. -->
 
 ### Prueba con 10 jugadores
 
@@ -183,10 +192,11 @@ kubectl get gameservers               # uno pasa a Allocated
 
 ## Entregable
 
-- [x] Captura de `docker run` → `docker run -p 7654:7654 -p 9100:9100 nebula-server:1.2`
-- [x] Captura de `/metrics` → `curl localhost:9100/metrics | grep nebula`
-- [ ] Captura de `kubectl get gameservers` antes y después de la asignación en GKE (ensayo en kind ya hecho: `docs/evidencias/3.3-agones-local.txt`)
+- [x] `docker run` y `/metrics`
+- [x] `kubectl get gameservers` antes y después de la asignación, en EKS y en el ensayo local
 - [x] Explicación de qué pasa si se borra un pod `Allocated` (abajo)
+
+<!-- consola: evidencias/3.3-agones-local.txt | 8-22 | Ensayo local en kind: kubectl get gameservers antes y después de crear la GameServerAllocation (un servidor pasa de Ready a Allocated). -->
 
 ### ¿Qué pasa si borras un pod en estado `Allocated`?
 

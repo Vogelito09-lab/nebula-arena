@@ -1,5 +1,7 @@
 # Práctica 3.2 — Pipeline CI/CD con GitHub Actions
 
+**Equipo:** Jarom Cortes Perez y Carlos Antonio Vogel Romero · Instituto Tecnológico de Colima (TecNM) · Noviembre de 2026
+
 **Objetivo:** automatizar la construcción y publicación de la imagen del servidor
 del juego, y actualizar la flota con la etiqueta del commit.
 
@@ -18,7 +20,12 @@ Se usó la variante AWS del material: `aws-actions/configure-aws-credentials`, `
 
 Corrida: [run 42694334223](https://github.com/Vogelito09-lab/nebula-arena/actions/runs/42694334223), commit `c295bf8`, 1 min 33 s en total. Los 3 servidores `Ready` quedaron con la imagen `nebula-server:c295bf8…`. Evidencia: `entrega/evidencias/3.2-pipeline/` (captura y salida de `kubectl`).
 
+![Pipeline en verde en GitHub Actions: los cuatro trabajos (pruebas, smoke, publicar y desplegar) terminaron con éxito en la corrida 42694334223.](../entrega/evidencias/3.2-pipeline/02-github-actions.png)
+
+<!-- consola: ../entrega/evidencias/3.2-pipeline/01-ejecucion-pipeline.txt | 1-17 | Resultado de la corrida y kubectl get gameservers después del despliegue: los 3 servidores Ready usan la imagen etiquetada con el SHA del commit (c295bf8…). La cuenta de AWS aparece enmascarada. -->
+
 **Seguridad:**
+
 - **Identidad de GitHub:** usuario IAM `nebula-github` con permisos mínimos (subir a sus dos repositorios de ECR y `eks:DescribeCluster`). Dentro de Kubernetes solo puede parchar la flota y el matchmaker (`k8s/aws/rbac-github.yaml`). Su llave vive solo en los secretos de GitHub.
 - **Lo ideal habría sido OIDC, sin llaves guardadas** (estaba escrito en Terraform). La cuenta del plan gratuito lo bloquea: `iam:CreateOpenIDConnectProvider` tiene un *explicit deny* en la política de control de servicios de AWS.
 - **Imágenes inmutables:** ECR no deja reescribir una etiqueta, así que cada versión desplegada se rastrea a su commit. Además, ECR escanea vulnerabilidades al subir.
@@ -98,6 +105,6 @@ mala terminan normalmente, y solo las partidas nuevas usan la versión anterior.
 
 ## Entregable
 
-- [ ] Captura del pipeline en verde (después de subir el repositorio a GitHub)
-- [ ] Imagen publicada con la etiqueta del commit (después de la parte de nube de la 3.3)
+- [x] Captura del pipeline en verde
+- [x] Imagen publicada con la etiqueta del commit
 - [x] Párrafo de rollback (arriba)
