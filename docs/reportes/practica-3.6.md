@@ -64,8 +64,11 @@ idempotente, es decir, que si no cambia nada en el código no propone cambios:
 
 <!-- consola: ../../entrega/evidencias/3.6-terraform/02-idempotencia.txt | todo | Segundo terraform plan: No changes. -->
 
-Los cambios de `infra-aws/` también están en un *pull request* en GitHub, para
-revisarlos antes de juntarlos con la rama principal.
+Los cambios los revisamos en el *pull request* #2 de GitHub, de la rama
+`practica-3.6` hacia `main`. En la descripción pegamos la salida del plan y
+explicamos qué significa antes de aplicarla:
+
+![Pull request #2 en GitHub con la revisión del terraform plan: sin drift (el único cambio es el presupuesto), idempotencia y destroy. Captura del 11 de noviembre.](../../entrega/evidencias/3.6-terraform/05-pull-request.png)
 
 ### 5. El clúster funcionando
 

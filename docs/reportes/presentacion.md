@@ -4,9 +4,10 @@
 
 El material pide una presentación de 10 minutos con una demostración en vivo del
 autoescalado. Este guion dice qué vamos a decir en cada bloque, cuánto dura y qué
-enseñamos en pantalla. Al terminar cada sesión destruimos el clúster de AWS,
-porque encendido cuesta unos USD 8 al día. Para la demo lo volvemos a crear con
-`terraform apply` (unos 15 minutos) antes de la clase y lo destruimos después.
+enseñamos en pantalla. Como destruimos todo en AWS para no gastar créditos, la demo
+la hacemos en vivo en la laptop, con el mismo juego, Agones, Prometheus y Grafana
+en un clúster local (kind), sin costo. Lo que no se puede ver en la laptop (la capa
+de nodos) lo enseñamos con las capturas de la prueba en AWS.
 
 ## Bloques de la presentación
 
@@ -19,24 +20,41 @@ porque encendido cuesta unos USD 8 al día. Para la demo lo volvemos a crear con
 | 6:00–7:30 | **Resultados** | La rampa de 300 jugadores en EKS: la flota pasó de 3 a 37 servidores y los nodos de 4 a 6; máximo de 252 jugadores, unos 42 por nodo; la flota reaccionó en 43 segundos y cada nodo tardó ~1 minuto. Enseñamos la gráfica de reacción y la captura de Grafana. |
 | 7:30–8:30 | **Costos** | Clúster: USD 0.34 por hora en reposo y 0.74 en el pico, **USD 0.003 por jugador y hora**. Bots: USD 0.60 por hora para 2,000. Espectadores: 20,000 son 54 TB por hora. Tabla de líderes: ≈ USD 6–7 al mes contra 15–20 de una VM. |
 | 8:30–9:30 | **Lo que aprendimos** | Las fallas que encontraron las pruebas: `/ready` una sola vez, `SIGTERM` ignorado, EKS sin metrics-server, el límite de 10 Lambdas y el orden del `destroy`. La GPU fue 68 % más lenta que la CPU para un bot pequeño. |
-| 9:30–10:00 | **Cierre** | Corremos `terraform destroy`: "todo lo que vieron se vuelve a crear con un comando". Preguntas. |
+| 9:30–10:00 | **Cierre** | "Todo lo que vieron en AWS se crea y se destruye con un comando de Terraform." Preguntas. |
 
 ## Demo en vivo (3 minutos)
 
-Antes de la clase dejamos listo el clúster con la flota, Grafana abierto en el
-tablero y Locust preparado.
+**Antes de la clase (10 minutos antes):** detener otros proyectos de Docker, porque
+Docker solo tiene 4 GB, y encender la demo con el script:
 
-1. Grafana en pantalla completa con los paneles de jugadores conectados,
-   servidores por estado y nodos.
-2. En la terminal enseñamos `kubectl get gameservers` y `kubectl get nodes`.
-3. Arrancamos una carga corta para que se vea el escalado en 3 minutos:
-   `locust -f locustfile.py Jugador -u 300 -r 15 -t 3m --headless`.
-4. Mientras sube, explicamos: los jugadores entran, los servidores `Ready` pasan a
-   `Allocated`, el FleetAutoscaler crea más para mantener servidores libres, y
-   cuando ya no caben, el Cluster Autoscaler agrega un nodo.
-5. Repetimos los dos `kubectl get` para enseñar los servidores y nodos nuevos.
-6. Si un nodo tarda más de lo que dura la demo, enseñamos la captura de la rampa de
-   300 jugadores como respaldo y lo decimos.
+```
+.\k8s\local\demo.ps1 -Encender
+```
+
+El script enciende el clúster, aplica el autoescalador con 5 servidores libres de
+reserva (la recomendación del reporte de la 3.4) y abre Grafana, que no pide
+contraseña.
+
+**En la demo:**
+
+1. Grafana en pantalla completa: jugadores conectados, servidores por estado y tick
+   rate.
+2. Arrancamos la carga: `.\k8s\local\demo.ps1 -Carga` (40 jugadores, uno por
+   segundo, 3 minutos).
+3. Mientras sube explicamos: los jugadores entran, los servidores `Ready` pasan a
+   `Allocated` y el FleetAutoscaler crea más para mantener 5 libres. En el ensayo la
+   flota pasó de 5 a 9 servidores, nunca se quedó sin servidores libres y el tick
+   rate se mantuvo en 20.
+4. Al terminar, el script muestra `kubectl get fleet` y `kubectl get gameservers`.
+5. Para la capa de nodos, que la laptop no tiene, enseñamos la captura de la rampa
+   de 300 jugadores en AWS (de 4 a 6 nodos).
+
+**Al terminar:** `.\k8s\local\demo.ps1 -Apagar`.
+
+**Respaldo:** si algo falla, enseñamos la captura del ensayo
+(`entrega/evidencias/demo-local/grafana-demo-40-jugadores.png`) y las de AWS.
+
+![Ensayo de la demo en la laptop: 40 jugadores, la flota creció de 5 a 9 servidores sin quedarse sin servidores libres y el tick rate se mantuvo en 20.](../../entrega/evidencias/demo-local/grafana-demo-40-jugadores.png)
 
 ## Diapositivas
 
